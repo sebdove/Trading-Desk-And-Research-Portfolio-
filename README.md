@@ -2,8 +2,8 @@
 
 A Windows desktop app that runs four trading bots side by side (crypto, Bitcoin trend, S&P 500 stocks and futures momentum), sharing one pot of money. Tested from January 2020 to November 2026.
 
-- **Project page (the research and results):** https://sebdove.github.io/pvsra-vector-desk/
-- **Download the app:** [Releases](https://github.com/sebdove/pvsra-vector-desk/releases/latest), `PVSRA-Bot-Desk-Setup-2.2.1.exe` (Windows 10 or 11)
+- **Project page (the research and results):** https://sebdove.github.io/Trading-Desk-And-Research-Portfolio-/
+- **Download the app:** [Releases](https://github.com/sebdove/Trading-Desk-And-Research-Portfolio-/releases/latest), `PVSRA-Bot-Desk-Setup-2.2.1.exe` (Windows 10 or 11)
 - **Source code:** the [`app`](app) folder
 
 ## What's in this repository
