@@ -1,0 +1,159 @@
+{
+ "asOf": "2026-11-04",
+ "checkedAt": "2026-11-04T12:00:00Z",
+ "model": "research snapshot",
+ "seed": true,
+ "headline": "Starting snapshot from the November 2026 research. Add an Anthropic API key in Settings to refresh it daily.",
+ "pillars": {
+  "valuation": {
+   "verdict": "match",
+   "tilt": 2,
+   "summary": "News puts the Shiller CAPE above 40, its highest since 2000, and US stock value above 2.5 times GDP; the data agrees (CAPE and stock value / GDP both near records). Goldman Sachs sees no valuation bubble inside tech, which fits the benchmark readings.",
+   "items": [
+    {
+     "text": "The Shiller CAPE reached 41.2 in August, its highest since September 2000.",
+     "source": "The Trading Tools",
+     "date": "2026-08-13",
+     "url": "https://www.thetrading.tools/chart-of-the-day/2026-08-13-shiller-cape-highest-since-2000"
+    },
+    {
+     "text": "Dean Baker's AI Bubble Monitor: market P/E 39.6 against 43.8 in 2000; US stock value more than 2.5 times GDP.",
+     "source": "CEPR (Dean Baker)",
+     "date": "2026-06-12",
+     "url": "https://www.radiofree.org/2026/06/12/the-ai-bubble-monitor-the-lay-of-the-land/"
+    },
+    {
+     "text": "Goldman Sachs sees no valuation bubble in technology; the risk is an earnings bubble.",
+     "source": "Investing.com",
+     "date": "2026-08-03",
+     "url": "https://www.investing.com/news/stock-market-news/goldman-the-real-ai-risk-is-an-earnings-bubble-not-valuations-4830442"
+    }
+   ]
+  },
+  "expansion": {
+   "verdict": "partly",
+   "tilt": 1,
+   "summary": "Prices have outrun industrial output but real earnings have kept pace, the split Goldman describes as a possible earnings bubble. The explosive-root test fires on real price only.",
+   "items": [
+    {
+     "text": "Goldman: earnings, not multiples, drove tech gains; implied 10-year earnings growth is beyond 2000 peaks.",
+     "source": "Investing.com",
+     "date": "2026-08-03",
+     "url": "https://www.investing.com/news/stock-market-news/goldman-the-real-ai-risk-is-an-earnings-bubble-not-valuations-4830442"
+    },
+    {
+     "text": "After-tax corporate profits are nearly twice their 2000 share of GDP.",
+     "source": "CEPR (Dean Baker)",
+     "date": "2026-06-12",
+     "url": "https://www.radiofree.org/2026/06/12/the-ai-bubble-monitor-the-lay-of-the-land/"
+    }
+   ]
+  },
+  "leverage": {
+   "verdict": "match",
+   "tilt": 2,
+   "summary": "Margin debt is at records and leveraged ETF assets doubled; margin loans relative to GDP score near the top of their history.",
+   "items": [
+    {
+     "text": "FINRA margin debt $1.4156 trillion in May, up 53.7% in a year; 6.17% of M2 against the 6.35% dot-com record.",
+     "source": "The Deep Dive",
+     "date": "2026-07-06",
+     "url": "https://thedeepdive.ca/us-margin-debt-nears-dot-com-era-record-and-history-isnt-reassuring/"
+    }
+   ]
+  },
+  "fomo": {
+   "verdict": "match",
+   "tilt": 2,
+   "summary": "Record IPO issuance and a record household equity share both match the data.",
+   "items": [
+    {
+     "text": "SpaceX raised a record $75 billion in its IPO at about a $1.77 trillion valuation.",
+     "source": "Chronicle.lu (AFP)",
+     "date": "2026-06-11",
+     "url": "https://chronicle.lu/category/international/61739-musks-spacex-prices-record-75bn-ipo-at-135-a-share"
+    },
+    {
+     "text": "US IPO proceeds passed $110 billion by mid-June; Goldman forecasts a record $160 billion for 2026.",
+     "source": "Crypto Briefing",
+     "date": "2026-06-15",
+     "url": "https://cryptobriefing.com/us-ipo-surge-120-billion-2026/"
+    }
+   ]
+  },
+  "fragility": {
+   "verdict": "ahead",
+   "tilt": 1,
+   "summary": "Private-credit stress among small borrowers is rising, but public credit spreads are tight and financial conditions loose, so the data does not show it yet.",
+   "items": [
+    {
+     "text": "12% of loans to $10-20 million EBITDA private-credit borrowers are priced below 90% of par, up from about 1% in 2023; record PIK use.",
+     "source": "Houlihan Lokey",
+     "date": "2026-09-10",
+     "url": "https://hl.com/about-us/newsroom/houlihan-lokey-finds-that-stress-among-the-smallest-private-credit-borrowers-has-climbed-more-than-tenfold-since-2023/"
+    }
+   ]
+  },
+  "benchmark": {
+   "verdict": "partly",
+   "tilt": 1,
+   "summary": "Concentration is a record and stocks barely out-yield bonds, but the Nasdaq is not unusually far ahead of the S&P 500.",
+   "items": [
+    {
+     "text": "The ten largest S&P 500 stocks are about 40% of the index, up from about 19% ten years earlier.",
+     "source": "Firstrade",
+     "date": "2026-08-18",
+     "url": "https://blog.firstrade.com/blog/2026/index-concentration-explained-what-it-means-when-10-stocks-are-40-of-the-sp-500"
+    },
+    {
+     "text": "Alphabet fell 13% on 29 October, its worst day on record, while the equal-weighted S&P 500 rose 1.2%.",
+     "source": "The National (Reuters)",
+     "date": "2026-10-29",
+     "url": "https://www.thenationalnews.com/business/markets/2026/10/29/alphabet-google-stocks-ai/"
+    }
+   ]
+  },
+  "trend": {
+   "verdict": "match",
+   "tilt": 1,
+   "summary": "Real price is about 2.5 sigma above its long-run trend, past GMO's 2-sigma bubble line; only 1998-2000 stood further above it.",
+   "items": [
+    {
+     "text": "GMO defines a bubble as a 2-sigma move above trend; all 28 major bubbles in its 1997 study went back to trend.",
+     "source": "Outlook Business (GMO)",
+     "date": "2014-05-01",
+     "url": "https://www.outlookbusiness.com/perspective/looking-at-bubbles-the-statistical-way-936"
+    }
+   ]
+  },
+  "killers": {
+   "verdict": "ahead",
+   "tilt": 1,
+   "summary": "The news is about tightening (a September Fed hike, CPI 3.7%, a 10-year yield near 5%); in the data only the bond-yield killer is on.",
+   "items": [
+    {
+     "text": "The Fed held at 3.75-4% on 28 October after a September hike; Cook and Hammack dissented for another hike.",
+     "source": "Nation Thailand",
+     "date": "2026-10-28",
+     "url": "https://www.nationthailand.com/news/world/40072859"
+    },
+    {
+     "text": "September CPI rose 3.7% from a year earlier, above the 3.6% expected.",
+     "source": "investingLive",
+     "date": "2026-10-14",
+     "url": "https://investinglive.com/news/us-september-cpi-vs-3-6-expected-0/"
+    },
+    {
+     "text": "US chip stocks were set to lose about $2 trillion of value amid rate-hike bets and AI build-out costs.",
+     "source": "Kitco (Reuters)",
+     "date": "2026-10-15",
+     "url": "https://www.kitco.com/news/off-the-wire/2026-10-15/us-chip-stocks-set-wipe-out-2-trillion-after-latest-selloff"
+    }
+   ]
+  }
+ },
+ "coming": [
+  "fed_hikes"
+ ],
+ "tilt": 7.1
+}

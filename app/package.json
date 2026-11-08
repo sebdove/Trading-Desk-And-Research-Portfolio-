@@ -1,0 +1,56 @@
+{
+  "name": "pvsra-bot-desk",
+  "productName": "PVSRA Bot Desk",
+  "version": "2.2.1",
+  "description": "Desktop app for the PVSRA trading bots: dashboard, start/stop, settings. Paper trading by default.",
+  "main": "electron/main.js",
+  "author": "PVSRA Bot Desk",
+  "license": "UNLICENSED",
+  "private": true,
+  "scripts": {
+    "app": "electron .",
+    "test": "node --test test/*.test.js",
+    "dist": "electron-builder --win nsis --x64"
+  },
+  "build": {
+    "appId": "com.pvsra.botdesk",
+    "productName": "PVSRA Bot Desk",
+    "files": [
+      "electron/**",
+      "src/**",
+      "data/**",
+      "build/icon.png",
+      "package.json"
+    ],
+    "directories": {
+      "output": "dist"
+    },
+    "win": {
+      "target": "nsis",
+      "icon": "build/icon.png",
+      "signAndEditExecutable": false
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "PVSRA Bot Desk",
+      "runAfterFinish": true
+    },
+    "asarUnpack": [
+      "src/**",
+      "data/**",
+      "build/icon.png",
+      "node_modules/xlsx/**"
+    ],
+    "publish": null
+  },
+  "devDependencies": {
+    "electron": "^33.2.1",
+    "electron-builder": "^25.1.8"
+  },
+  "dependencies": {
+    "xlsx": "^0.18.5"
+  }
+}
