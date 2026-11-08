@@ -1,0 +1,732 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>S&amp;P 500 Bubble Watch</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Karla:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+:root[data-cvd="1"]{--ok:#4ea8ff;--no:#ff9f1a;--froth:#ff9f1a;--kill:#56b4e9}
+@media (prefers-color-scheme: light){:root[data-cvd="1"]:not([data-theme="dark"]){--ok:#1f6fd1;--no:#c96a00;--froth:#c96a00;--kill:#0072b2}}
+/* Layout: one working column (~1120px) under a sticky tab bar. Reading now → bubble chart with inspector → consensus vs data → article checker → history → method. Dark-first, same family as the earlier v3/v4 reports. Bubble score = orange, momentum killers = blue, explosive test = violet, price = ink. */
+:root{--bg:#11181d;--panel:#141d23;--panel2:#10171c;--line:#27323a;--chart-bg:#0c1016;--fg:#d6dce4;--muted:#8591a1;--acc:#5cc8ff;--grid:rgba(127,139,155,.16);
+  --froth:#d95926;--kill:#3987e5;--expl:#9085e9;--band:rgba(133,145,161,.15);--band2:rgba(133,145,161,.09);--price:#e6ebf1;
+  --ok:#2fbf83;--part:#d0a03a;--ahead:#a99ff0;--no:#ec5a61;
+  --sans:"Karla",system-ui,sans-serif;--mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;color-scheme:dark}
+@media (prefers-color-scheme: light){:root:not([data-theme="dark"]){--bg:#f3f5f8;--panel:#fff;--panel2:#f8f9fb;--line:#d8dee6;--fg:#17202b;--muted:#5a6676;--acc:#0a7fbd;--grid:rgba(92,104,120,.16);
+  --froth:#eb6834;--kill:#2a78d6;--expl:#6250d6;--band:rgba(92,104,120,.13);--band2:rgba(92,104,120,.07);--price:#17202b;--ok:#11865a;--part:#946812;--ahead:#5b47c9;--no:#c62f38;color-scheme:light}}
+:root[data-theme="light"]{--bg:#f3f5f8;--panel:#fff;--panel2:#f8f9fb;--line:#d8dee6;--fg:#17202b;--muted:#5a6676;--acc:#0a7fbd;--grid:rgba(92,104,120,.16);
+  --froth:#eb6834;--kill:#2a78d6;--expl:#6250d6;--band:rgba(92,104,120,.13);--band2:rgba(92,104,120,.07);--price:#17202b;--ok:#11865a;--part:#946812;--ahead:#5b47c9;--no:#c62f38;color-scheme:light}
+:root[data-theme="dark"]{--bg:#11181d;--panel:#141d23;--panel2:#10171c;--line:#27323a;--chart-bg:#0c1016;--fg:#d6dce4;--muted:#8591a1;--acc:#5cc8ff;--grid:rgba(127,139,155,.16);
+  --froth:#d95926;--kill:#3987e5;--expl:#9085e9;--band:rgba(133,145,161,.15);--band2:rgba(133,145,161,.09);--price:#e6ebf1;--ok:#2fbf83;--part:#d0a03a;--ahead:#a99ff0;--no:#ec5a61;color-scheme:dark}
+*{box-sizing:border-box}
+.upd{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;font-size:13px;color:var(--muted)}.upd .dot{width:8px;height:8px;border-radius:50%;background:var(--ok);display:inline-block;margin-right:6px}.upd .dot.bad{background:var(--part)}
+.bars2{display:grid;grid-template-columns:150px minmax(0,1fr) 54px;gap:6px 12px;align-items:center;font-size:14px}.bars2 .tr{height:9px;border-radius:3px;background:var(--grid);position:relative;overflow:hidden}.bars2 .tr i{position:absolute;inset:0 auto 0 0;border-radius:3px;background:var(--ok)}.bars2 .v{font-family:var(--mono);text-align:right}.bars2 .w{grid-column:2/-1;color:var(--muted);font-size:13px;margin-top:-4px}
+[hidden]{display:none!important}
+html{-webkit-text-size-adjust:100%}
+body{background:var(--bg);color:var(--fg);font-family:var(--sans);font-size:15.5px;line-height:1.55;margin:0;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:26px 56px}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
+.wrap{max-width:1120px;margin:0 auto;display:flex;flex-direction:column;gap:20px}
+h1{font-family:"Barlow Condensed","Arial Narrow",sans-serif;text-transform:uppercase;letter-spacing:.01em;font-size:38px;line-height:1.05;margin:0;font-weight:800;text-wrap:balance;letter-spacing:-.005em}
+h2{font-size:13px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin:0;font-weight:600}
+h3{font-size:19px;margin:0;font-weight:600;text-wrap:balance;line-height:1.3}
+p{margin:0;max-width:76ch}
+a{color:var(--acc)}
+b{font-weight:600}
+.meta{font-size:13px;color:var(--muted);font-family:var(--mono);line-height:1.6}
+.mono,.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+header{display:flex;flex-direction:column;gap:8px}
+.now{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.card{border:1px solid var(--line);border-radius:8px;padding:14px 16px;background:var(--panel);display:flex;flex-direction:column;gap:6px;min-width:0}
+.card .k{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.card .big{font-family:var(--mono);font-size:30px;font-weight:500;line-height:1.1;font-variant-numeric:tabular-nums;display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.card .big small{font-size:14px;color:var(--muted)}
+.card p{font-size:14px;color:var(--muted)}
+.read{font-size:16.5px;max-width:82ch}
+.chip{display:inline-flex;align-items:center;gap:5px;font-family:var(--sans);font-size:12.5px;font-weight:600;letter-spacing:.02em;padding:2px 9px;border-radius:999px;border:1px solid currentColor;white-space:nowrap;line-height:1.5}
+.chip.t2{color:var(--froth)}.chip.t1{color:var(--part)}.chip.t0{color:var(--muted)}
+.chip.match{color:var(--ok)}.chip.partly{color:var(--part)}.chip.ahead{color:var(--ahead)}.chip.contra{color:var(--no)}.chip.untest{color:var(--muted)}
+.tabs{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);display:flex;gap:4px;overflow-x:auto;border-bottom:1px solid var(--line);padding-block:8px 0;scrollbar-width:none}
+.tabs::-webkit-scrollbar{display:none}
+.tabs a{flex:none;color:var(--muted);text-decoration:none;font-weight:600;font-size:14.5px;padding:8px 12px 10px;border-bottom:2px solid transparent;margin-bottom:-1px;border-radius:4px 4px 0 0}
+.tabs a:hover{color:var(--fg)}
+.tabs a[aria-current="page"]{color:var(--fg);border-bottom-color:var(--froth)}
+a:focus-visible,button:focus-visible,canvas:focus-visible,textarea:focus-visible,input:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+.view{display:flex;flex-direction:column;gap:22px}
+section{display:flex;flex-direction:column;gap:12px;min-width:0}
+.bar{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.seg{display:flex;flex-wrap:wrap;gap:4px}
+button{font:inherit;font-size:13.5px;font-weight:600;color:var(--fg);background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:5px 11px;cursor:pointer}
+button:hover{border-color:var(--muted)}
+button[aria-pressed="true"]{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+button.primary{background:var(--froth);border-color:var(--froth);color:#fff}
+button:disabled{opacity:.5;cursor:default}
+label.tog{display:inline-flex;gap:6px;align-items:center;font-size:13.5px;color:var(--muted);cursor:pointer}
+.chartgrid{display:grid;grid-template-columns:minmax(0,1fr) 290px;gap:14px;align-items:start}
+.cv{position:relative;border:1px solid var(--line);border-radius:8px;background:var(--chart-bg,var(--panel));overflow:hidden;min-width:0}
+canvas#c{display:block;width:100%;height:720px;touch-action:pan-y;cursor:crosshair}canvas#c.grab{cursor:grabbing}
+.ins{border:1px solid var(--line);border-radius:8px;background:var(--panel);padding:14px 14px 16px;display:flex;flex-direction:column;gap:10px;font-size:13.5px;min-width:0}
+.ins .d{font-family:var(--mono);font-size:15px;font-weight:500}
+.ins .px{color:var(--muted);font-size:13px;font-family:var(--mono)}
+.ins .score{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.ins .score .n{font-family:var(--mono);font-size:26px;font-weight:500;line-height:1}
+.pl{display:grid;grid-template-columns:76px minmax(0,1fr) 26px;gap:4px 8px;align-items:center;font-size:12.5px}
+.pl .lab{color:var(--muted)}
+.pl .tr{height:7px;border-radius:2px;background:var(--grid);position:relative;overflow:hidden}
+.pl .tr i{position:absolute;inset:0 auto 0 0;background:var(--froth);border-radius:2px}
+.pl .v{font-family:var(--mono);text-align:right;font-size:12px}
+.ins .sub{font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.ins ul{margin:0;padding-left:16px;display:flex;flex-direction:column;gap:2px}
+.ins .kv{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 10px;font-size:12.5px}
+.ins .kv span:nth-child(odd){color:var(--muted)}
+.ins .kv span:nth-child(even){font-family:var(--mono);text-align:right}
+.ins .next{border-top:1px dashed var(--line);padding-top:8px;color:var(--muted);font-size:12.5px}
+.legend{display:flex;flex-wrap:wrap;gap:6px 18px;font-size:13px;color:var(--muted)}
+.legend span{display:inline-flex;align-items:center;gap:7px}
+.sw{display:inline-block;width:18px;height:10px;border-radius:2px}
+.hint{font-size:13px;color:var(--muted)}
+.tw{overflow-x:auto;border:1px solid var(--line);border-radius:8px;background:var(--panel)}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th,td{padding:8px 12px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line)}
+tr:last-child td{border-bottom:0}
+th{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600;white-space:nowrap;background:var(--panel2)}
+td.n,th.n{text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+td .q{color:var(--muted);font-size:13.5px}
+.pill{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:0;border:1px solid var(--line);border-radius:8px;background:var(--panel);overflow:hidden}
+.pill .hd{grid-column:1/-1;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;padding:12px 16px;border-bottom:1px solid var(--line);background:var(--panel2)}
+.pill .hd .t{display:flex;flex-direction:column;gap:1px}
+.pill .hd .t span{font-size:13px;color:var(--muted)}
+.pill .col{padding:12px 16px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.pill .col+.col{border-left:1px solid var(--line)}
+.pill .col h4{margin:0;font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.pill ul{margin:0;padding-left:16px;display:flex;flex-direction:column;gap:6px;font-size:14px}
+.pill .src{color:var(--muted);font-size:12.5px}
+.pill .why{grid-column:1/-1;padding:10px 16px 12px;border-top:1px dashed var(--line);font-size:14px}
+.verdicts{display:flex;gap:8px;flex-wrap:wrap}
+.chk{display:flex;flex-direction:column;gap:10px}
+textarea{width:100%;min-height:150px;resize:vertical;font:inherit;font-size:14.5px;color:var(--fg);background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px 12px}
+input[type="month"]{font:inherit;font-size:14px;color:var(--fg);background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:4px 8px}
+.status{font-size:13.5px;color:var(--muted);min-height:1.4em}
+.res{display:flex;flex-direction:column;gap:10px}
+.note{border-left:3px solid var(--line);padding:4px 0 4px 12px;color:var(--muted);font-size:14px;max-width:82ch}
+.stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+details summary{cursor:pointer;color:var(--acc);font-size:14px}
+.meth{display:grid;grid-template-columns:200px minmax(0,1fr);gap:10px 24px;font-size:14.5px}
+.meth dt{font-weight:600}
+.meth dd{margin:0;color:var(--fg);max-width:76ch}
+.meth dd .q{color:var(--muted)}
+ol.src{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:4px;font-size:14px}
+@media (max-width:980px){.chartgrid{grid-template-columns:minmax(0,1fr)}.now{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:640px){h1{font-size:28px}.now,.stats{grid-template-columns:minmax(0,1fr)}canvas#c{height:560px}.pill{grid-template-columns:minmax(0,1fr)}.pill .col+.col{border-left:0;border-top:1px solid var(--line)}.meth{grid-template-columns:minmax(0,1fr);gap:2px}.meth dd{margin-bottom:10px}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+@media (prefers-color-scheme: light){:root:not([data-theme="dark"]){--chart-bg:var(--panel)}}:root[data-theme="light"]{--chart-bg:var(--panel)}
+</style>
+
+</head><body>
+<div class="wrap">
+<header>
+  <h2>S&amp;P 500 and its Cowles/Shiller predecessor · Jan 1871 to <span id="hdrDate">Nov 2026</span></h2>
+  <h1>S&amp;P 500 Bubble Watch</h1>
+  <div class="meta" id="hdrMeta"></div>
+  <div class="upd" id="upd"></div>
+</header>
+
+<div class="now" id="now"></div>
+<p class="read" id="read"></p>
+
+<nav class="tabs" aria-label="Sections">
+  <a href="#chart" data-v="chart">Bubble chart</a>
+  <a href="#crash" data-v="crash">Crash buy</a>
+  <a href="#consensus" data-v="consensus">Consensus vs data</a>
+  <a href="#check" data-v="check">Check an article</a>
+  <a href="#history" data-v="history">History</a>
+  <a href="#method" data-v="method">Method &amp; sources</a>
+</nav>
+
+<div class="view" id="v-chart">
+  <div class="bar">
+    <div class="seg" id="ranges" role="group" aria-label="Date range"></div>
+    <span style="flex:1"></span>
+    <label class="tog"><input type="checkbox" id="tgBand" checked> Trend band</label>
+    <button id="reset" type="button">Reset zoom</button>
+  </div>
+  <div class="chartgrid">
+    <div class="cv"><canvas id="c" tabindex="0" aria-label="S&amp;P 500 price since 1871 with bubble zones, bubble score, momentum killers and pillar heat strip. Use left and right arrow keys to move through months."></canvas></div>
+    <aside class="ins" id="ins" aria-live="polite"></aside>
+  </div>
+  <div class="legend" id="legend"></div>
+  <p class="hint">Works like the bot charts: drag to move along, scroll to zoom in and out, double-click or press Reset to see everything, and use the drawing tools at the top left (Shift + click to measure). Hover, tap or use the arrow keys to read any month. Daily closes from 30 Dec 1927, monthly averages before that. Each month's score uses only data that had been published by then.</p>
+</div>
+
+<div class="view" id="v-crash" hidden>
+  <section><h2>Crash-buy indicator</h2><p id="crIntro"></p><div class="now" id="crNow"></div></section>
+  <section><h2>What the score is made of today</h2><div class="bars2" id="crComp"></div></section>
+  <section><h2>How far it could fall</h2><div id="crFall" style="display:flex;flex-direction:column;gap:14px"></div></section>
+  <section><h2>The buying plan, and how it did in past bear markets</h2><p id="crPlanTxt"></p><div class="tw"><table id="crPlan"></table></div></section>
+  <section><h2>Crash-buy score against what came next</h2><p class="hint">Real price return after 12 and 36 months, and the median further fall within 36 months, by crash-buy score. The weights were set before looking at the 1970-2023 test years.</p><div id="crVal" style="display:flex;flex-direction:column;gap:12px"></div></section>
+  <section><h2>Tested with the stock bot</h2><div id="crBot" style="display:flex;flex-direction:column;gap:12px"></div></section>
+</div>
+
+<div class="view" id="v-consensus" hidden>
+  <section>
+    <h2>What the news and research say, pillar by pillar, against what the numbers say</h2>
+    <p id="consIntro"></p>
+    <div class="verdicts" id="consCount"></div>
+  </section>
+  <div id="pillars" style="display:flex;flex-direction:column;gap:14px"></div>
+  <p class="note" id="consNote"></p>
+  <section><h2>Daily score log</h2><p class="hint">One line per day the app refreshed its data. The news tilt is shown beside the data score and is never part of it.</p><div class="tw"><table id="dlog"></table></div></section>
+</div>
+
+<div class="view" id="v-check" hidden>
+  <section class="chk">
+    <h2>Check an article, headline or research note against the data</h2>
+    <p>Paste text below. Claude pulls out its claims about valuation, leverage, speculation, credit, concentration and policy, then says whether the readings for the month you pick back each one up. Pick an older month to test what was said at the time, for example a 1999 article against December 1999.</p>
+    <div class="bar"><label for="asof" class="hint">Compare with data as of</label><input type="month" id="asof"><button type="button" id="asofLatest">Latest</button></div>
+    <textarea id="art" aria-label="Article text"></textarea>
+    <div class="bar"><button class="primary" type="button" id="go">Check against the data</button><button type="button" id="stop" hidden>Stop</button><span class="status" id="st"></span></div>
+    <p class="note" id="noSample" hidden>Checking articles needs an Anthropic API key. Add one in Settings → Bubble Watch; it is also what runs the daily news check.</p>
+    <div class="res" id="res"></div>
+  </section>
+</div>
+
+<div class="view" id="v-history" hidden>
+  <section>
+    <h2>How well the detector has worked</h2>
+    <div class="stats" id="stats"></div>
+  </section>
+  <section>
+    <h2>Famous peaks: what people said and what the data said</h2>
+    <div class="tw"><table id="famous"></table></div>
+  </section>
+  <section>
+    <h2>Every bubble-zone episode the detector found</h2>
+    <p class="hint">An episode is three or more months with a bubble score of 75 or more, or 65 or more while the explosive-root test fires, joining gaps of up to seven months. Decline is from the highest close during the episode (or six months after it) to the lowest close before that high was beaten again, capped at ten years.</p>
+    <div class="tw"><table id="eps"></table></div>
+  </section>
+  <section>
+    <h2>Bubble score against the next three years</h2>
+    <p class="hint">Every month from 1891 to 2023. The score was not fitted to these outcomes: thresholds are round numbers and every percentile uses only earlier data.</p>
+    <div class="tw"><table id="valt"></table></div>
+    <div class="tw"><table id="valk"></table></div>
+  </section>
+  <section>
+    <details><summary>All 20%+ declines since 1872, with the detector's reading beforehand</summary>
+      <div class="tw" style="margin-top:10px"><table id="bears"></table></div></details>
+  </section>
+</div>
+
+<div class="view" id="v-method" hidden>
+  <section>
+    <h2>The eight pillars</h2>
+    <p>Each indicator becomes a 0 to 100 score: its percentile against every earlier month (at least ten years of history). A pillar averages its indicators that have data that month, and the bubble score averages the pillars. Indicators that trend upward over decades (margin loans, corporate debt) average their level percentile with their three-year change percentile so the score does not drift up by itself.</p>
+    <dl class="meth" id="methP"></dl>
+  </section>
+  <section>
+    <h2>Explosive-root test</h2>
+    <p>The Phillips–Shi–Yu backward sup ADF test (2015) asks whether a price series is growing explosively rather than wandering like a random walk. For each month it runs a Dickey–Fuller regression on every window that ends that month and is at least 96 months long, and keeps the highest t-statistic. The 95% critical values come from 2,000 simulated random walks of the same length. It runs on three series: log real price, log price to dividends, and log CAPE. A fast rise in real price alone is momentum; a fast rise in price relative to dividends or earnings is the textbook bubble signature. Explosive falls are excluded by requiring the real price to be above its level a year earlier.</p>
+  </section>
+  <section>
+    <h2>Momentum killers</h2>
+    <p>Bubbles end when something takes away the cheap money or the story. These ten switches are on or off each month; the tool reports the share that are on, because fewer series existed in early years.</p>
+    <dl class="meth" id="methK"></dl>
+  </section>
+  <section>
+    <h2>Crash-buy score</h2>
+    <p>Six parts, 100 points: depth of the fall from the 24-month high (30), how far the bubble score has come down from its 3-year high (20), fear measured by 21-day volatility (15), credit stress widening and then turning down (10), the Fed or T-bill rate falling from its 12-month high (10), and the S&amp;P closing a month back above its 10-month average after a 15% fall (15). The weights were set by reasoning and checked on 1891–1969; 1970–2023 was kept as a test.</p>
+  </section>
+  <section>
+    <h2>Daily updates and the news tilt</h2>
+    <p>Once a day the app downloads the latest S&amp;P 500, Nasdaq, Russell 2000, equal-weight and VIX closes from Yahoo Finance and sixteen series from FRED, and once a week Shiller's file and FINRA's margin statistics. The current month uses the average of its daily closes so far, as Shiller does. If a source fails, the last good copy is kept. With an Anthropic API key, Claude also searches the news once a day and writes a verdict and a tilt of −2 to +2 for each pillar; the tilt is shown beside the data score and never enters it, because it cannot be tested on history.</p>
+  </section>
+  <section>
+    <h2>Avoiding hindsight</h2>
+    <p>Quarterly Federal Reserve and GDP data are used four to six months after the quarter starts, monthly data one month later, Shiller earnings one quarter later, and FINRA margin data one month later. Trend lines are refitted each month on data up to that month. The three-year outcomes shown in the inspector and history tables are for checking the tool and are never used in a score.</p>
+  </section>
+  <section>
+    <h2>Limits</h2>
+    <ul style="margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px;max-width:82ch">
+      <li>Before 1946 there is no margin, household or corporate-debt data, so early scores rest on valuation, expansion, chasing, credit spreads and trend. The Fed's 1928–29 rate hikes and the brokers' loan boom are not in the data.</li>
+      <li>Equal-weight comparisons start in 2003 and the Nasdaq in 1971, so the benchmark pillar is thin for earlier years.</li>
+      <li>Not every bear market is a bubble bust. Wars, inflation and rate shocks (1917, 1973–74, 1980–82) and the 2020 pandemic hit markets that were not in a bubble zone.</li>
+      <li>Bubble zones can last for years. The late-1990s episode ran 56 months, and Greenspan's "irrational exuberance" warning came three years before the top.</li>
+      <li>Private credit, leveraged ETFs, options volume and IPO counts have no long history here, so they appear only in the news comparison.</li>
+      <li>This is a research tool, not investment advice.</li>
+    </ul>
+  </section>
+  <section>
+    <h2>Sources</h2>
+    <ol class="src" id="srcs"></ol>
+  </section>
+</div>
+</div>
+
+<script src="/draw.js"></script>
+<script>
+try{if(localStorage.getItem('pvsra.cvd')==='1')document.documentElement.dataset.cvd='1'}catch(e){}
+const BRIDGE = window.botApp || (() => { try { return window.parent !== window ? window.parent.botApp : null } catch (e) { return null } })();
+(async () => {
+let DATA; try { DATA = await fetch('/api/bubble', {cache: 'no-store'}).then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); }); }
+catch (e) { document.querySelector('.wrap').insertAdjacentHTML('beforeend', `<p class="note">The Bubble Watch data could not be loaded (${e.message}).</p>`); return; }
+const mon = DATA.mon, N = mon.n, T0 = 1871;
+const MN = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const PIL = ['valuation','expansion','leverage','fomo','fragility','benchmark','trend'];
+const PLAB = {valuation:'Valuation',expansion:'Expansion',leverage:'Leverage',fomo:'FOMO',fragility:'Fragility',benchmark:'Benchmark',trend:'Trend'};
+const PLONG = {valuation:'Overvaluation of the asset',expansion:'Expansion that outruns output',leverage:'False momentum from "dumb money" leverage',fomo:'Public FOMO',fragility:'Backdoor fragility',benchmark:'Valuation against benchmarks',trend:'Stretch above the long-run trend'};
+const IND = {v_cape:'CAPE (Shiller P/E)',v_buff:'Stock market value / GDP',x_cape36:'CAPE change over 3 years',x_ip36:'Real price growth minus industrial output growth, 3 years',x_e24:'Real price growth minus real earnings growth, 2 years',x_bsadf:'Explosive-root test, price vs dividends and CAPE',l_level:'Margin loans / GDP (level and 3-year change)',l_growth:'Margin debt growth, 12 months',f_alloc:"Households' equity share of financial assets",f_chase:'Real price gain over 2 years',r_spread:'Baa corporate minus 10-year Treasury spread (tighter scores higher)',r_corp:'Corporate bond debt / GDP (level and 3-year change)',r_nfci:'Chicago Fed financial conditions (looser scores higher)',r_bank:'Bank credit growth, 12 months',k_ecy:'Excess CAPE yield, stocks vs bonds (lower scores higher)',k_conc:'Cap-weighted vs equal-weighted S&P 500, 3 years',k_ndx:'Nasdaq vs S&P 500, against its 5-year average',k_rut:'Small caps lagging the S&P 500, 3 years',g_sigma:'Distance above the long-run trend'};
+const PIND = {valuation:['v_cape','v_buff'],expansion:['x_cape36','x_ip36','x_e24','x_bsadf'],leverage:['l_level','l_growth'],fomo:['f_alloc','f_chase'],fragility:['r_spread','r_corp','r_nfci','r_bank'],benchmark:['k_ecy','k_conc','k_ndx','k_rut'],trend:['g_sigma']};
+const PSRC = {valuation:'Shiller CAPE from 1881; Fed Z.1 nonfinancial corporate equities / GDP from 1947',expansion:'Shiller real price and earnings; Fed industrial production from 1919',leverage:'Fed Z.1 broker margin loans from 1946; FINRA margin debt from 1997',fomo:'Fed Z.1 household equity share from 1946; Shiller real price',fragility:"Moody's Baa yield from 1919; Z.1 corporate bonds from 1947; Chicago Fed NFCI from 1971; bank credit from 1973",benchmark:'Shiller excess CAPE yield from 1881; Nasdaq from 1971; Russell 2000 from 1987; equal-weight RSP from 2003',trend:'Log-linear trend of Shiller real price, refitted each month from 1891'};
+const KL = {fed_hikes:'Fed (or T-bill) rate up 1 point or more in 12 months',curve_inv:'Yield curve inverted (10-year below 3-month)',bond_shock:'10-year yield up 1 point or more in 12 months',credit_widen:'Baa spread 0.5 point or more above its 12-month low',trend_break:'S&P below its 10-month average',jobs_turn:'Unemployment up 0.5 point from its recent low',fin_tight:'Financial conditions tightening (NFCI up 0.25 in 6 months)',earn_fall:'Real earnings lower than a year earlier',inflation:'Inflation 4% or more and rising',lend_tight:'Banks tightening loan standards (20% net or more)'};
+const KS = {fed_hikes:'Fed funds from 1954, 3-month T-bill 1934–54',curve_inv:'from 1934',bond_shock:'from 1872',credit_widen:'from 1920',trend_break:'from 1871',jobs_turn:'from 1948',fin_tight:'from 1971',earn_fall:'from 1872',inflation:'from 1872',lend_tight:'Senior Loan Officer Survey from 1990'};
+const TIER = ['Normal','Elevated','Bubble zone'];
+const fmt = (v, d=0) => v == null ? '–' : Number(v).toLocaleString('en-US', {minimumFractionDigits:d, maximumFractionDigits:d});
+const ymI = i => { const y = T0 + Math.floor(i/12), m = i % 12; return {y, m}; };
+const ymS = i => { const {y,m} = ymI(i); return MN[m] + ' ' + y; };
+const ymIso = i => { const {y,m} = ymI(i); return y + '-' + String(m+1).padStart(2,'0'); };
+const idxOf = s => { const [y,m] = s.split('-').map(Number); return (y - T0)*12 + (m-1); };
+const dS = s => { const [y,m,d] = s.split('-').map(Number); return (d ? d + ' ' : '') + MN[m-1] + ' ' + y; };
+const fS = v => v == null ? '–' : String(Math.floor(v + 1e-9));
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const L = N - 1;
+
+// ---------- daily series ----------
+const dd = DATA.daily.dd, dc = DATA.daily.c, ND = dc.length;
+const d0 = Date.parse(DATA.daily.start + 'T00:00:00Z');
+const dDay = new Float64Array(ND), dT = new Float64Array(ND);
+{ let acc = 0; for (let k = 0; k < ND; k++) { acc += dd[k]; dDay[k] = d0 + acc*864e5; const dt = new Date(dDay[k]); const y = dt.getUTCFullYear(); const a = Date.UTC(y,0,1), b = Date.UTC(y+1,0,1); dT[k] = y + (dDay[k]-a)/(b-a); } }
+const dStr = k => { const t = new Date(dDay[k]); return t.getUTCDate() + ' ' + MN[t.getUTCMonth()] + ' ' + t.getUTCFullYear(); };
+// combined price: monthly averages before 1928, daily closes after
+const nM = (1928 - T0)*12;
+const PT = new Float64Array(nM + ND), PV = new Float64Array(nM + ND);
+for (let i = 0; i < nM; i++) { PT[i] = T0 + (i + .5)/12; PV[i] = mon.P[i]; }
+for (let k = 0; k < ND; k++) { PT[nM+k] = dT[k]; PV[nM+k] = dc[k]; }
+const TEND = dT[ND-1] + 1/365;
+const lowerBound = (A, x) => { let lo = 0, hi = A.length; while (lo < hi) { const m = (lo+hi) >> 1; if (A[m] < x) lo = m+1; else hi = m; } return lo; };
+
+// ---------- current-state cards ----------
+const lastEp = DATA.episodes[DATA.episodes.length - 1];
+const snap = DATA.snap;
+const frothNow = mon.froth[L];
+const frothRank = (() => { let n = 0, h = 0; for (let i = 0; i < N; i++) if (mon.froth[i] != null) { n++; if (mon.froth[i] < frothNow) h++; } return Math.round(h/n*100); })();
+let runStart = L; while (runStart > 0 && mon.expl_p[runStart-1] === 1) runStart--;
+const sigNow = mon.sigma[L];
+const sigHigher = (() => { const ys = new Set(); const stop = idxOf(DATA.episodes[DATA.episodes.length-1].start); for (let i = 0; i < stop; i++) if (mon.sigma[i] != null && mon.sigma[i] > sigNow) ys.add(ymI(i).y); return [...ys]; })();
+const killActive = []; DATA.killers.forEach((k, j) => { if ((mon.ka[L] >> j & 1) && (mon.km[L] >> j & 1)) killActive.push(k); });
+const fromHigh = (snap.close / snap.high - 1) * 100;
+document.getElementById('hdrDate').textContent = dS(snap.daily_last);
+document.getElementById('hdrMeta').textContent = `Monthly readings through ${ymS(L)} · daily index through ${dS(snap.daily_last)} · ${N.toLocaleString()} months scored`;
+document.querySelectorAll('.lastD').forEach(e => e.textContent = dS(snap.daily_last));
+const vTop = DATA.val[DATA.val.length-1], vLow = DATA.val[0];
+const kHi = DATA.valk[2], kLo = DATA.valk[0];
+const NWS = DATA.news || null, WN = DATA.withNews;
+const CSTAGE = ['No crash under way', 'Falling: wait', 'First third bought', 'Two thirds bought', 'Trend turned: fully bought'];
+const crNow = mon.crash[L], stNow = mon.cstage[L];
+document.getElementById('now').innerHTML = `
+ <div class="card"><div class="k">Bubble score, ${ymS(L)}</div><div class="big">${fS(frothNow)}<small>/ 100</small><span class="chip t${mon.tier[L]}">${TIER[mon.tier[L]]}</span></div>
+   <p>Higher than ${frothRank}% of months since 1891.${mon.tier[L] === 2 && lastEp.ongoing ? ` This episode began in ${dS(lastEp.start)} and has run ${lastEp.months} months.` : ''}${WN ? ` With today's news tilt (${WN.tilt >= 0 ? '+' : ''}${fmt(WN.tilt,1)}, not validated): ${fS(WN.score)}.` : ''} Explosive-root test on real price: ${mon.expl_p[L] ? 'firing' : 'quiet'}.</p></div>
+ <div class="card"><div class="k">Momentum killers on</div><div class="big">${mon.kill_n[L]}<small>of ${mon.kill_avail[L]}</small></div>
+   <p>${killActive.map(k => KL[k]).join('; ') || 'None'}. In past bubble zones, three-year returns turned negative once 30% or more were on.${NWS && NWS.coming && NWS.coming.length ? ` News says coming: ${NWS.coming.map(k => KL[k] || k).join('; ')}.` : ''}</p></div>
+ <div class="card"><div class="k">Crash-buy score</div><div class="big">${fS(crNow)}<small>/ 100</small><span class="chip ${stNow >= 2 ? 'match' : stNow === 1 ? 't1' : 't0'}">${CSTAGE[stNow]}</span></div>
+   <p>${stNow === 0 ? `The S&amp;P is ${fmt(-mon.dd24[L],1)}% below its 24-month high. The plan starts watching at a 10% fall and buys its first third at a score of 65.` : `The S&amp;P is ${fmt(-mon.dd24[L],1)}% below its 24-month high. See the Crash buy tab for the plan.`}</p></div>
+ <div class="card"><div class="k">Above long-run trend</div><div class="big">${sigNow >= 0 ? '+' : ''}${fmt(sigNow,1)}σ</div>
+   <p>Grantham's bubble line is +2σ.${sigHigher.length ? ` Only ${sigHigher[0]}–${sigHigher[sigHigher.length-1]} stood further above trend.` : ''} S&amp;P ${fmt(snap.close,2)} on ${dS(snap.daily_last)}, ${fmt(-fromHigh,1)}% below the ${dS(snap.high_date)} record.</p></div>`;
+document.getElementById('read').innerHTML = `${mon.tier[L] === 2 ? `On how expensive, leveraged and crowded the market is, ${ymS(L)} sits with 1929, 1999 and 2021.` : mon.tier[L] === 1 ? `The market is elevated, below the bubble-zone line of 75.` : `The bubble score is in its normal range.`} What usually decides the timing is the momentum killers: ${mon.kill_n[L]} of ${mon.kill_avail[L]} ${mon.kill_n[L] === 1 ? 'is' : 'are'} on. Since 1891, months with a score of 75 or more were followed by an average three-year real return of ${fmt(vTop.fwd_real,1)}% and a ${fmt(vTop.p25)}% chance of a 25% fall, against ${fmt(vLow.fwd_real,1)}% and ${fmt(vLow.p25)}% for scores under 40. Bubble zones can still run for years.`;
+// ---------- update status (app only) ----------
+function renderUpd() { const el = document.getElementById('upd'), stt = DATA.status || {}, srcs = Object.entries(stt.sources || {});
+  const bad = srcs.filter(([, v]) => !v.ok).map(([k]) => k), when = stt.lastSuccess ? new Date(stt.lastSuccess).toLocaleString() : null;
+  const nw = NWS ? (NWS.seed ? 'News: November 2026 research snapshot' : `News checked ${new Date(NWS.checkedAt).toLocaleString()}`) : 'No news check yet';
+  el.innerHTML = `<span><i class="dot ${bad.length ? 'bad' : ''}"></i>${when ? 'Data refreshed ' + esc(when) : 'Using the bundled data from ' + esc(DATA.rawAsOf || 'November 2026')}${bad.length ? ` · ${bad.length} source${bad.length > 1 ? 's' : ''} failed last time (${esc(bad.slice(0, 4).join(', '))}${bad.length > 4 ? '…' : ''})` : ''}</span><span>${esc(nw)}</span>${BRIDGE && BRIDGE.bubbleUpdate ? '<button type="button" id="updNow">Update now</button>' : ''}${BRIDGE && BRIDGE.bubbleWindow && window.parent !== window ? '<button type="button" id="ownWin">Open in its own window</button>' : ''}<span id="updMsg"></span>`;
+  const b = document.getElementById('updNow'); if (b) b.onclick = async () => { b.disabled = true; document.getElementById('updMsg').textContent = 'Updating… this takes a minute or two.';
+    try { await BRIDGE.bubbleUpdate(); location.reload(); } catch (e) { document.getElementById('updMsg').textContent = String(e.message || e).replace(/^Error invoking remote method '[^']+': (Error: )?/, ''); b.disabled = false; } };
+  const w = document.getElementById('ownWin'); if (w) w.onclick = () => BRIDGE.bubbleWindow(); }
+renderUpd();
+if (BRIDGE && BRIDGE.onBubble) BRIDGE.onBubble(m => { const x = document.getElementById('updMsg'); if (x && m && m.progress) x.textContent = m.progress + '…'; if (m && m.updated) location.reload(); });
+
+// ---------- tabs ----------
+const VIEWS = ['chart','crash','consensus','check','history','method'];
+function show() { const h = location.hash.replace('#',''); const v = VIEWS.includes(h) ? h : 'chart';
+  VIEWS.forEach(x => document.getElementById('v-'+x).hidden = x !== v);
+  document.querySelectorAll('.tabs a').forEach(a => a.setAttribute('aria-current', a.dataset.v === v ? 'page' : 'false'));
+  if (v === 'chart') requestAnimationFrame(() => { sizeCanvas(); drawBase(); drawOver(); }); }
+window.addEventListener('hashchange', show);
+
+// ---------- chart ----------
+const cv = document.getElementById('c'), ctx = cv.getContext('2d');
+const base = document.createElement('canvas'), bctx = base.getContext('2d');
+let W = 0, H = 0, DPR = 1, view = {t0: T0, t1: TEND}, hover = L, hoverT = null, drag = null, showBand = true, G = null, C = null;
+const RANGES = [['All', T0, TEND], ['1871–1920', T0, 1920], ['1920–1950', 1920, 1950], ['1950–1980', 1950, 1980], ['1980–2010', 1980, 2010], ['2010–now', 2010, TEND], ['5 years', TEND-5, TEND], ['1 year', TEND-1, TEND]];
+const rg = document.getElementById('ranges');
+RANGES.forEach(([lab, a, b], j) => { const bt = document.createElement('button'); bt.type = 'button'; bt.textContent = lab; bt.setAttribute('aria-pressed', j === 0 ? 'true' : 'false'); bt.onclick = () => setView(a, b, j); rg.appendChild(bt); });
+function setView(a, b, j = -1) { view = {t0: a, t1: b}; [...rg.children].forEach((x, k) => x.setAttribute('aria-pressed', k === j ? 'true' : 'false')); drawBase(); drawOver(); }
+document.getElementById('reset').onclick = () => setView(T0, TEND, 0);
+document.getElementById('tgBand').onchange = e => { showBand = e.target.checked; drawBase(); drawOver(); };
+function colors() { const s = getComputedStyle(document.documentElement), g = n => s.getPropertyValue(n).trim();
+  return {bg: g('--chart-bg') || g('--panel'), fg: g('--fg'), muted: g('--muted'), line: g('--line'), grid: g('--grid'), froth: g('--froth'), kill: g('--kill'), expl: g('--expl'), band: g('--band'), band2: g('--band2'), price: g('--price'), acc: g('--acc'), ok: g('--ok'), part: g('--part'), mono: g('--mono'), sans: g('--sans')}; }
+function rgba(hex, a) { hex = hex.replace('#',''); if (hex.length === 3) hex = hex.split('').map(c => c+c).join(''); const n = parseInt(hex, 16); return `rgba(${n>>16&255},${n>>8&255},${n&255},${a})`; }
+function sizeCanvas() { const r = cv.getBoundingClientRect(); if (!r.width) return; DPR = Math.min(2, window.devicePixelRatio || 1); W = r.width; H = r.height;
+  for (const c of [cv, base]) { c.width = Math.round(W*DPR); c.height = Math.round(H*DPR); } }
+function geom() { const Lm = W < 520 ? 66 : 84, R = 12, top = 10, ax = 22, gap = 12; const avail = H - top - ax - gap*4;
+  const hp = avail*.45, hf = avail*.17, hk = avail*.08, hc = avail*.12, hh = avail*.18;
+  const P = {x: Lm, w: W - Lm - R}; const y1 = top, y2 = y1 + hp + gap, y3 = y2 + hf + gap, y5 = y3 + hk + gap, y4 = y5 + hc + gap;
+  return {L: Lm, R, P, price: {y: y1, h: hp}, froth: {y: y2, h: hf}, kill: {y: y3, h: hk}, crash: {y: y5, h: hc}, heat: {y: y4, h: hh}, axY: y4 + hh + 4}; }
+const X = t => G.P.x + (t - view.t0)/(view.t1 - view.t0)*G.P.w;
+const Tx = x => view.t0 + (x - G.P.x)/G.P.w*(view.t1 - view.t0);
+let priceY = null, priceInv = null, hoverY = null;
+function drawBase() {
+  if (!W) return; G = geom(); C = colors(); const g = bctx; g.setTransform(DPR,0,0,DPR,0,0); g.clearRect(0,0,W,H); g.fillStyle = C.bg; g.fillRect(0,0,W,H);
+  const {t0, t1} = view; const m0 = Math.max(0, Math.floor((t0 - T0)*12) - 1), m1 = Math.min(L, Math.ceil((t1 - T0)*12) + 1);
+  const pr = G.price, PX = G.P;
+  // price range
+  const k0 = Math.max(0, lowerBound(PT, t0) - 1), k1 = Math.min(PT.length - 1, lowerBound(PT, t1));
+  let lo = Infinity, hi = -Infinity; for (let k = k0; k <= k1; k++) { const v = PV[k]; if (v > 0) { if (v < lo) lo = v; if (v > hi) hi = v; } }
+  if (showBand) for (let i = m0; i <= m1; i++) { const tr = mon.trendpx[i], sd = mon.sd[i]; if (tr && sd) { const t = T0 + (i+.5)/12; if (t < t0 || t > t1) continue; lo = Math.min(lo, tr*Math.exp(-2*sd)); hi = Math.max(hi, tr*Math.exp(2*sd)); } }
+  const pad = (Math.log(hi) - Math.log(lo))*.06 || .05; const lmin = Math.log(lo) - pad, lmax = Math.log(hi) + pad;
+  const Y = v => pr.y + 12 + (lmax - Math.log(v))/(lmax - lmin)*(pr.h - 12); priceY = Y; priceInv = y => Math.exp(lmax - (y - pr.y - 12)/(pr.h - 12)*(lmax - lmin));
+  g.save(); g.beginPath(); g.rect(PX.x, 0, PX.w, H); g.clip();
+  // bubble shading
+  for (let i = m0; i <= m1; i++) { const tr = mon.tier[i]; if (!tr) continue; let j = i; while (j + 1 <= m1 && mon.tier[j+1] === tr) j++;
+    const xa = X(T0 + i/12), xb = X(T0 + (j+1)/12); g.fillStyle = rgba(C.froth, tr === 2 ? .17 : .06); g.fillRect(xa, pr.y, Math.max(1, xb - xa), pr.h); i = j; }
+  // trend band
+  if (showBand) { for (const [kk, col] of [[2, C.band2], [1, C.band]]) { g.beginPath(); let st = false; const up = [], dn = [];
+      for (let i = m0; i <= m1; i++) { const tr = mon.trendpx[i], sd = mon.sd[i]; if (!tr || !sd) continue; const x = X(T0 + (i+.5)/12); up.push([x, Y(tr*Math.exp(kk*sd))]); dn.push([x, Y(tr*Math.exp(-kk*sd))]); }
+      if (up.length) { g.moveTo(up[0][0], up[0][1]); for (const p of up) g.lineTo(p[0], p[1]); for (let q = dn.length - 1; q >= 0; q--) g.lineTo(dn[q][0], dn[q][1]); g.closePath(); g.fillStyle = col; g.fill(); } }
+    g.beginPath(); let st = false; for (let i = m0; i <= m1; i++) { const tr = mon.trendpx[i]; if (!tr) { st = false; continue; } const x = X(T0 + (i+.5)/12), y = Y(tr); st ? g.lineTo(x, y) : g.moveTo(x, y); st = true; }
+    g.setLineDash([4,4]); g.strokeStyle = C.muted; g.lineWidth = 1; g.stroke(); g.setLineDash([]); }
+  // explosive strips
+  for (let i = m0; i <= m1; i++) { const xa = X(T0 + i/12), w = Math.max(1, X(T0 + (i+1)/12) - xa);
+    if (mon.expl_p[i]) { g.fillStyle = C.expl; g.fillRect(xa, pr.y + 1, w, 4); }
+    if (mon.expl_up[i]) { g.fillStyle = rgba(C.expl, .55); g.fillRect(xa, pr.y + 6, w, 4); } }
+  g.restore();
+  // y grid + labels (log)
+  g.font = `11px ${C.mono}`; g.fillStyle = C.muted; g.textAlign = 'right'; g.textBaseline = 'middle';
+  const ticks = logTicks(Math.exp(lmin), Math.exp(lmax));
+  for (const v of ticks) { const y = Y(v); if (y < pr.y + 12 || y > pr.y + pr.h) continue; g.strokeStyle = C.grid; g.lineWidth = 1; g.beginPath(); g.moveTo(PX.x, Math.round(y)+.5); g.lineTo(PX.x + PX.w, Math.round(y)+.5); g.stroke(); g.fillText(v < 10 ? String(v) : fmt(v), PX.x - 6, y); }
+  // price line
+  g.save(); g.beginPath(); g.rect(PX.x, pr.y, PX.w, pr.h); g.clip();
+  g.strokeStyle = C.price; g.lineWidth = 1.5; g.lineJoin = 'round'; drawDecimated(g, PT, PV, k0, k1, Y); g.restore();
+  // froth panel
+  const fr = G.froth, FY = v => fr.y + (100 - v)/100*fr.h;
+  for (const v of [0, 50, 100]) { g.strokeStyle = C.grid; g.beginPath(); g.moveTo(PX.x, Math.round(FY(v))+.5); g.lineTo(PX.x + PX.w, Math.round(FY(v))+.5); g.stroke(); g.fillStyle = C.muted; g.fillText(String(v), PX.x - 6, FY(v)); }
+  g.save(); g.beginPath(); g.rect(PX.x, fr.y - 2, PX.w, fr.h + 4); g.clip();
+  g.beginPath(); let st = false, xs = null, xl = null;
+  for (let i = m0; i <= m1; i++) { const v = mon.froth[i]; if (v == null) { if (st) { g.lineTo(xl, FY(0)); g.lineTo(xs, FY(0)); g.closePath(); } st = false; continue; } const x = X(T0 + (i+.5)/12), y = FY(v); if (!st) { g.moveTo(x, FY(0)); g.lineTo(x, y); xs = x; st = true; } else g.lineTo(x, y); xl = x; }
+  if (st) { g.lineTo(xl, FY(0)); g.lineTo(xs, FY(0)); g.closePath(); }
+  g.fillStyle = rgba(C.froth, .14); g.fill();
+  g.beginPath(); st = false; for (let i = m0; i <= m1; i++) { const v = mon.froth[i]; if (v == null) { st = false; continue; } const x = X(T0 + (i+.5)/12), y = FY(v); st ? g.lineTo(x, y) : g.moveTo(x, y); st = true; }
+  g.strokeStyle = C.froth; g.lineWidth = 1.6; g.stroke();
+  for (const [v, lab] of [[75, 'bubble zone 75'], [65, 'elevated 65']]) { g.setLineDash([3,3]); g.strokeStyle = v === 75 ? C.froth : C.muted; g.lineWidth = 1; g.beginPath(); g.moveTo(PX.x, Math.round(FY(v))+.5); g.lineTo(PX.x + PX.w, Math.round(FY(v))+.5); g.stroke(); g.setLineDash([]); }
+  g.restore();
+  g.textAlign = 'right'; g.fillStyle = C.muted; g.font = `10.5px ${C.mono}`; g.fillText('75 bubble zone', PX.x + PX.w - 6, FY(75) - 7); g.fillText('65 elevated', PX.x + PX.w - 6, FY(65) + 8);
+  // killers panel (share on)
+  const kp = G.kill, KY = v => kp.y + (100 - v)/100*kp.h;
+  g.textAlign = 'right'; g.font = `11px ${C.mono}`; for (const v of [0, 50]) { g.strokeStyle = C.grid; g.beginPath(); g.moveTo(PX.x, Math.round(KY(v))+.5); g.lineTo(PX.x + PX.w, Math.round(KY(v))+.5); g.stroke(); g.fillStyle = C.muted; g.fillText(v + '%', PX.x - 6, KY(v)); }
+  g.save(); g.beginPath(); g.rect(PX.x, kp.y, PX.w, kp.h); g.clip(); g.fillStyle = rgba(C.kill, .75);
+  for (let i = m0; i <= m1; i++) { const a = mon.kill_avail[i]; if (!a) continue; const v = mon.kill_n[i]/a*100; if (!v) continue; const xa = X(T0 + i/12), xb = X(T0 + (i+1)/12); g.fillRect(xa, KY(v), Math.max(1, xb - xa), KY(0) - KY(v)); }
+  g.setLineDash([3,3]); g.strokeStyle = C.kill; g.beginPath(); g.moveTo(PX.x, Math.round(KY(30))+.5); g.lineTo(PX.x + PX.w, Math.round(KY(30))+.5); g.stroke(); g.setLineDash([]); g.restore();
+  // crash-buy panel
+  const cpn = G.crash, CY = v => cpn.y + (100 - v)/100*cpn.h;
+  g.textAlign = 'right'; g.font = `11px ${C.mono}`; for (const v of [0, 65]) { g.strokeStyle = C.grid; g.beginPath(); g.moveTo(PX.x, Math.round(CY(v))+.5); g.lineTo(PX.x + PX.w, Math.round(CY(v))+.5); g.stroke(); g.fillStyle = C.muted; g.fillText(String(v), PX.x - 6, CY(v)); }
+  g.save(); g.beginPath(); g.rect(PX.x, cpn.y, PX.w, cpn.h); g.clip(); g.fillStyle = rgba(C.ok, .7);
+  for (let i = m0; i <= m1; i++) { const v = mon.crash[i]; if (!v) continue; const xa = X(T0 + i/12), xb = X(T0 + (i+1)/12); g.fillRect(xa, CY(v), Math.max(1, xb - xa), CY(0) - CY(v)); }
+  g.setLineDash([3,3]); g.strokeStyle = C.ok; g.beginPath(); g.moveTo(PX.x, Math.round(CY(65))+.5); g.lineTo(PX.x + PX.w, Math.round(CY(65))+.5); g.stroke(); g.setLineDash([]); g.restore();
+  // plan buys on the price panel
+  g.save(); g.beginPath(); g.rect(PX.x, pr.y, PX.w, pr.h); g.clip(); g.fillStyle = C.ok;
+  for (let i = Math.max(1, m0); i <= m1; i++) { const a = mon.cstage[i], b = mon.cstage[i-1]; if (!(a >= 2 && a > b)) continue; const x = X(T0 + (i+.5)/12), y = Y(mon.P[i]) + 9; g.beginPath(); g.moveTo(x, y - 5); g.lineTo(x - 5, y + 4); g.lineTo(x + 5, y + 4); g.closePath(); g.fill(); }
+  g.restore();
+  // heat strip
+  const hp = G.heat, rh = hp.h/PIL.length; g.textAlign = 'right'; g.font = `11px ${C.sans}`;
+  PIL.forEach((p, r) => { const y = hp.y + r*rh; g.fillStyle = C.muted; g.fillText(PLAB[p], PX.x - 6, y + rh/2);
+    const arr = mon[p]; const cols = Math.ceil(PX.w);
+    const mpp = (t1 - t0)*12/PX.w;
+    if (mpp <= 1) { for (let i = m0; i <= m1; i++) { const v = arr[i]; if (v == null) continue; const xa = Math.max(PX.x, X(T0 + i/12)), xb = Math.min(PX.x + PX.w, X(T0 + (i+1)/12)); if (xb <= xa) continue; g.fillStyle = rgba(C.froth, Math.max(.04, v/100)); g.fillRect(xa, y + 1, xb - xa + .3, rh - 2); } }
+    else { for (let c = 0; c < cols; c++) { const ta = Tx(PX.x + c), tb = Tx(PX.x + c + 1); const ia = Math.max(0, Math.floor((ta - T0)*12)), ib = Math.min(L, Math.floor((tb - T0)*12)); let s = 0, n = 0; for (let i = ia; i <= ib; i++) if (arr[i] != null) { s += arr[i]; n++; } if (!n) continue; g.fillStyle = rgba(C.froth, Math.max(.04, s/n/100)); g.fillRect(PX.x + c, y + 1, 1.2, rh - 2); } } });
+  // x axis
+  const xt = xTicks(t0, t1, PX.w); g.textAlign = 'center'; g.textBaseline = 'top'; g.font = `11px ${C.mono}`;
+  for (const t of xt.ts) { const x = Math.round(X(t)) + .5; g.strokeStyle = C.grid; g.beginPath(); g.moveTo(x, pr.y); g.lineTo(x, hp.y + hp.h); g.stroke(); g.fillStyle = C.muted; g.fillText(xt.lab(t), x, G.axY); }
+  // panel captions
+  g.textAlign = 'left'; g.textBaseline = 'alphabetic'; g.font = `600 10.5px ${C.sans}`; g.fillStyle = C.muted;
+  const cap = (s, y, dx = 0) => { const w = g.measureText(s).width; g.fillStyle = rgba(C.bg.startsWith('#') ? C.bg : '#121820', .82); g.fillRect(PX.x + 4 + dx, y - 10, w + 8, 14); g.fillStyle = C.muted; g.fillText(s, PX.x + 8 + dx, y); };
+  cap('S&P 500, LOG SCALE', pr.y + 34, 222); cap('BUBBLE SCORE', fr.y + 12); cap('MOMENTUM KILLERS ON', kp.y + 12); cap('CRASH-BUY SCORE', cpn.y + 12);
+  g.strokeStyle = C.line; g.lineWidth = 1; g.strokeRect(PX.x + .5, pr.y + .5, PX.w - 1, pr.h - 1);
+}
+function drawDecimated(g, T, V, k0, k1, Y) { let col = null, started = false; g.beginPath();
+  const flush = () => { if (!col) return; if (started) g.lineTo(col.x, col.f); else { g.moveTo(col.x, col.f); started = true; } if (col.n > 1) { g.lineTo(col.x, col.mn); g.lineTo(col.x, col.mx); g.lineTo(col.x, col.l); } };
+  for (let k = k0; k <= k1; k++) { const v = V[k]; if (!(v > 0)) continue; const x = Math.round(X(T[k])*2)/2, y = Y(v);
+    if (!col || col.x !== x) { flush(); col = {x, f: y, l: y, mn: y, mx: y, n: 1}; } else { col.l = y; if (y < col.mn) col.mn = y; if (y > col.mx) col.mx = y; col.n++; } }
+  flush(); g.stroke(); }
+function logTicks(a, b) { const out = []; const e0 = Math.floor(Math.log10(a)), e1 = Math.ceil(Math.log10(b));
+  for (const set of [[1], [1, 5], [1, 2, 5], [1, 1.5, 2, 3, 5, 7], [1, 1.2, 1.4, 1.6, 1.8, 2, 2.5, 3, 4, 5, 6, 7, 8, 9]]) { out.length = 0;
+    for (let e = e0; e <= e1; e++) for (const m of set) { const v = +(m*Math.pow(10, e)).toPrecision(3); if (v >= a && v <= b) out.push(v); }
+    if (out.length >= 4) break; }
+  return out.length > 10 ? out.filter((_, i) => i % 2 === 0) : out; }
+function xTicks(t0, t1, w) { const span = t1 - t0, target = Math.max(3, Math.floor(w/80));
+  const steps = [1/12, 2/12, 3/12, 6/12, 1, 2, 5, 10, 20, 25, 50]; const st = steps.find(s => span/s <= target) || 50;
+  const ts = []; if (st < 1) { const sm = Math.round(st*12); let m = Math.ceil((t0 - T0)*12/sm)*sm; for (; T0 + m/12 <= t1; m += sm) ts.push(T0 + m/12); }
+  else { for (let t = Math.ceil(t0/st)*st; t <= t1 + 1e-9; t += st) ts.push(t); }
+  const lab = t => { if (st >= 1) return String(Math.round(t)); const mi = Math.round((t - T0)*12); const {y, m} = ymI(mi); return m === 0 ? String(y) : MN[m]; };
+  return {ts, lab}; }
+function drawOver() { if (!W || !G) return; ctx.setTransform(1,0,0,1,0,0); ctx.clearRect(0,0,cv.width,cv.height); ctx.drawImage(base, 0, 0); ctx.setTransform(DPR,0,0,DPR,0,0);
+  const PX = G.P;
+  if (drag && Math.abs(drag.x1 - drag.x0) > 2) { const a = Math.min(drag.x0, drag.x1), b = Math.max(drag.x0, drag.x1); ctx.fillStyle = rgba(C.acc, .14); ctx.fillRect(a, G.price.y, b - a, G.heat.y + G.heat.h - G.price.y); ctx.strokeStyle = C.acc; ctx.strokeRect(a + .5, G.price.y + .5, b - a, G.heat.y + G.heat.h - G.price.y); }
+  const t = hoverT != null ? hoverT : T0 + (hover + .5)/12; if (t < view.t0 || t > view.t1) return;
+  const x = Math.round(X(t)) + .5; ctx.strokeStyle = rgba(C.fg.startsWith('#') ? C.fg : '#d6dce4', .45); ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(x, G.price.y); ctx.lineTo(x, G.heat.y + G.heat.h); ctx.stroke();
+  if (hoverY != null && priceInv && hoverY > G.price.y + 12 && hoverY < G.price.y + G.price.h) { const yy = Math.round(hoverY) + .5, pv = priceInv(hoverY);
+    ctx.setLineDash([4,4]); ctx.beginPath(); ctx.moveTo(PX.x, yy); ctx.lineTo(PX.x + PX.w, yy); ctx.stroke(); ctx.setLineDash([]);
+    ctx.font = `600 11px ${C.mono}`; const tx = pv < 10 ? pv.toFixed(2) : fmt(pv, pv < 1000 ? 1 : 0), tw = ctx.measureText(tx).width + 10; ctx.fillStyle = C.fg; ctx.fillRect(PX.x - tw - 1, yy - 9, tw, 18); ctx.fillStyle = C.bg; ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillText(tx, PX.x - tw + 4, yy); }
+  // dot on price
+  const k = Math.min(PT.length - 1, Math.max(0, lowerBound(PT, t))); const kk = (k > 0 && Math.abs(PT[k-1] - t) < Math.abs(PT[k] - t)) ? k - 1 : k; const v = PV[kk];
+  if (v > 0 && priceY) { ctx.fillStyle = C.price; ctx.beginPath(); ctx.arc(X(PT[kk]), priceY(v), 3.5, 0, Math.PI*2); ctx.fill(); ctx.strokeStyle = C.bg; ctx.lineWidth = 2; ctx.stroke(); }
+  const f = mon.froth[hover]; if (f != null) { const y = G.froth.y + (100 - f)/100*G.froth.h; ctx.fillStyle = C.froth; ctx.beginPath(); ctx.arc(x, y, 3.5, 0, Math.PI*2); ctx.fill(); ctx.strokeStyle = C.bg; ctx.lineWidth = 2; ctx.stroke(); }
+}
+function setHoverFromX(x) { const t = Math.max(view.t0, Math.min(view.t1, Tx(x))); hoverT = t; hover = Math.max(0, Math.min(L, Math.floor((t - T0)*12))); renderIns(); drawOver(); }
+let rafP = 0;
+// Same handling as the bot charts: drag to pan, wheel to zoom around the mouse, double-click to show everything.
+const SPAN_MIN = 0.25, SPAN_MAX = TEND - T0 + 4;
+function clampView(a, b) { let s = Math.max(SPAN_MIN, Math.min(SPAN_MAX, b - a)); const lo = T0 - s*0.05, hi = TEND + s*0.08; if (a < lo) a = lo; if (a + s > hi) a = hi - s; return [a, a + s]; }
+function panTo(a, b) { [a, b] = clampView(a, b); view = {t0: a, t1: b}; [...rg.children].forEach(x => x.setAttribute('aria-pressed', 'false')); drawBase(); drawOver(); }
+cv.addEventListener('pointermove', e => { const r = cv.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top; hoverY = y;
+  if (drag) { const dx = x - drag.x0; if (Math.abs(dx) > 2) drag.moved = true; const dt = -dx/G.P.w*(drag.v.t1 - drag.v.t0); if (drag.moved && !rafP) { rafP = requestAnimationFrame(() => { rafP = 0; panTo(drag ? drag.v.t0 + dt : view.t0, drag ? drag.v.t1 + dt : view.t1); setHoverFromX(x); }); } return; }
+  if (rafP) return; rafP = requestAnimationFrame(() => { rafP = 0; setHoverFromX(x); }); });
+cv.addEventListener('pointerleave', () => { hoverY = null; drawOver(); });
+cv.addEventListener('pointerdown', e => { if (e.shiftKey) return; if (e.pointerType !== 'mouse' || e.button !== 0) { const r = cv.getBoundingClientRect(); setHoverFromX(e.clientX - r.left); return; }
+  const r = cv.getBoundingClientRect(); drag = {x0: e.clientX - r.left, v: {...view}, moved: false}; cv.setPointerCapture(e.pointerId); cv.classList.add('grab'); });
+cv.addEventListener('pointerup', () => { drag = null; cv.classList.remove('grab'); });
+cv.addEventListener('wheel', e => { if (!G) return; e.preventDefault(); const r = cv.getBoundingClientRect(), x = Math.max(G.P.x, Math.min(G.P.x + G.P.w, e.clientX - r.left));
+  const tc = Tx(x), span = view.t1 - view.t0, ns = Math.max(SPAN_MIN, Math.min(SPAN_MAX, span*Math.exp((e.deltaY || e.deltaX)*0.0015))), f = (tc - view.t0)/span;
+  panTo(tc - f*ns, tc - f*ns + ns); }, {passive: false});
+cv.addEventListener('dblclick', () => setView(T0, TEND, 0));
+cv.addEventListener('keydown', e => { if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') { e.preventDefault(); hover = Math.max(0, Math.min(L, hover + (e.key === 'ArrowLeft' ? -1 : 1) * (e.shiftKey ? 12 : 1))); hoverT = null;
+  const t = T0 + (hover + .5)/12; if (t < view.t0 || t > view.t1) { const span = view.t1 - view.t0; setView(Math.max(T0, t - span/2), Math.min(TEND, t + span/2)); } renderIns(); drawOver(); } });
+new ResizeObserver(() => { sizeCanvas(); drawBase(); drawOver(); }).observe(cv);
+const mq = matchMedia('(prefers-color-scheme: dark)'); (mq.addEventListener ? mq.addEventListener('change', () => { drawBase(); drawOver(); }) : null);
+new MutationObserver(() => { drawBase(); drawOver(); }).observe(document.documentElement, {attributes: true, attributeFilter: ['data-theme', 'class', 'style']});
+
+// drawing tools on the price panel (time in years on the x axis)
+if (window.DrawLayer) DrawLayer({wrap: cv.parentElement, el: cv, key: () => 'bubble', visible: () => !document.getElementById('v-chart').hidden && !!G,
+  barPos: () => ({left: G.P.x + 6, top: G.price.y + 14}),
+  api: () => !G || !priceInv ? null : {pane: {x: G.P.x, y: G.price.y + 12, w: G.P.w, h: G.price.h - 12}, axis: 'left', X, Y: v => priceY(v), L: Tx, P: y => priceInv(y), snap: l => Math.round(l*12)/12,
+    span: (a, c) => { const m = Math.round(Math.abs(c - a)*12), y = Math.floor(m/12), mm = m % 12; return (y ? y + (y === 1 ? ' year' : ' years') : '') + (y && mm ? ' ' : '') + (mm || !y ? mm + (mm === 1 ? ' month' : ' months') : ''); }}});
+// legend
+document.getElementById('legend').innerHTML = `
+ <span><i class="sw" style="height:2px;background:var(--price)"></i>S&amp;P 500</span>
+ <span><i class="sw" style="background:var(--band)"></i>Long-run trend ±1σ and ±2σ</span>
+ <span><i class="sw" style="background:color-mix(in srgb, var(--froth) 30%, transparent)"></i>Bubble zone</span>
+ <span><i class="sw" style="background:color-mix(in srgb, var(--froth) 12%, transparent)"></i>Elevated</span>
+ <span><i class="sw" style="height:4px;background:var(--expl)"></i>Explosive: real price</span>
+ <span><i class="sw" style="height:4px;background:color-mix(in srgb, var(--expl) 55%, transparent)"></i>Explosive: vs dividends or CAPE</span>
+ <span><i class="sw" style="height:2px;background:var(--froth)"></i>Bubble score</span>
+ <span><i class="sw" style="background:var(--kill)"></i>Share of momentum killers on</span>
+ <span><i class="sw" style="background:var(--ok)"></i>Crash-buy score (plan buys ▲)</span>
+ <span><i class="sw" style="background:linear-gradient(90deg, color-mix(in srgb, var(--froth) 8%, transparent), var(--froth))"></i>Pillar score 0 → 100</span>`;
+
+// inspector
+function renderIns() { const i = hover, {y} = ymI(i);
+  const t = hoverT != null ? hoverT : T0 + (i + .5)/12; let pxLine = '';
+  if (t >= dT[0]) { let k = lowerBound(dT, t); if (k >= ND) k = ND - 1; if (k > 0 && Math.abs(dT[k-1] - t) < Math.abs(dT[k] - t)) k--; pxLine = `Close ${dStr(k)}: ${fmt(dc[k], 2)}`; }
+  else pxLine = `Monthly average: ${fmt(mon.P[i], 2)}`;
+  const f = mon.froth[i], tier = mon.tier[i];
+  const pills = PIL.map(p => { const v = mon[p][i]; return `<span class="lab">${PLAB[p]}</span><span class="tr"><i style="width:${v == null ? 0 : v}%"></i></span><span class="v">${v == null ? '–' : v}</span>`; }).join('');
+  const act = [], off = []; DATA.killers.forEach((k, j) => { if (!(mon.ka[i] >> j & 1)) return; ((mon.km[i] >> j & 1) ? act : off).push(KL[k]); });
+  const ex1 = mon.bsadf[i] != null ? (mon.expl_p[i] ? `explosive (${fmt(mon.bsadf[i],2)} vs ${fmt(mon.bsadf_cv[i],2)})` : `not explosive (${fmt(mon.bsadf[i],2)} vs ${fmt(mon.bsadf_cv[i],2)})`) : 'not enough history';
+  const ex2 = mon.expl_up[i] ? 'explosive' : (mon.bpd[i] != null ? 'not explosive' : 'not enough history');
+  const kv = [['CAPE', mon.cape[i] != null ? fmt(mon.cape[i],1) : '–'], ['Stock value / GDP', mon.buff[i] != null ? fmt(mon.buff[i]) + '%' : '–'], ['Margin loans / GDP', mon.margin[i] != null ? fmt(mon.margin[i],2) + '%' : '–'], ['Household equity share', mon.hh[i] != null ? fmt(mon.hh[i],1) + '%' : '–'], ['Baa − 10-year', mon.spread[i] != null ? fmt(mon.spread[i],2) + ' pts' : '–'], ['Excess CAPE yield', mon.ecy[i] != null ? fmt(mon.ecy[i],2) + '%' : '–'], ['10-year yield', fmt(mon.gs10[i],2) + '%'], ['Short rate', mon.ff[i] != null ? fmt(mon.ff[i],2) + '%' : '–'], ['vs trend', mon.sigma[i] != null ? (mon.sigma[i] >= 0 ? '+' : '') + fmt(mon.sigma[i],1) + 'σ' : '–']];
+  const nx = mon.fwd_real[i] != null ? `Next 3 years: real return ${mon.fwd_real[i] >= 0 ? '+' : ''}${fmt(mon.fwd_real[i],1)}%, deepest fall from this month ${fmt(mon.fwd_dd[i],1)}%. Shown for checking; not used in the score.` : 'Next 3 years: not known yet.';
+  document.getElementById('ins').innerHTML = `
+   <div><div class="d">${ymS(i)}</div><div class="px">${pxLine}</div></div>
+   <div class="score">${f == null ? '<span class="hint">Scores start in 1891, once ten years of history exist.</span>' : `<span class="n">${fS(f)}</span><span class="chip t${tier}">${TIER[tier]}</span>`}</div>
+   <div class="pl">${pills}</div>
+   <div><div class="sub">Momentum killers ${mon.kill_n[i]} of ${mon.kill_avail[i]}</div>${act.length ? `<ul>${act.map(a => `<li>${a}</li>`).join('')}</ul>` : '<span class="hint">None on</span>'}</div>
+   <div><div class="sub">Explosive-root test</div><div>Real price: ${ex1}</div><div>Price vs dividends or CAPE: ${ex2}</div></div>
+   <div class="kv">${kv.map(([a, b]) => `<span>${a}</span><span>${b}</span>`).join('')}</div>
+   <div><div class="sub">Crash buy</div><div>Score ${fS(mon.crash[i])} · ${CSTAGE[mon.cstage[i]]} · ${fmt(-mon.dd24[i],1)}% below the 24-month high</div></div>
+   <div class="next">${nx}</div>`; }
+
+// ---------- consensus ----------
+const ind = k => mon.ind[k][L];
+const hhPrev = (() => { let mx = -1, at = 0; for (let i = 0; i < L - 12; i++) if (mon.hh[i] != null && mon.hh[i] > mx) { mx = mon.hh[i]; at = i; } return {mx, at}; })();
+const capeMax = (() => { let mx = -1, at = 0; for (let i = 0; i < L; i++) if (mon.cape[i] != null && mon.cape[i] > mx) { mx = mon.cape[i]; at = i; } return {mx, at}; })();
+const rP36 = (mon.realP[L]/mon.realP[L-36] - 1)*100, rP24 = (mon.realP[L]/mon.realP[L-24] - 1)*100;
+const offK = DATA.killers.filter((k, j) => (mon.ka[L] >> j & 1) && !(mon.km[L] >> j & 1));
+const S = (t, src, url) => ({t, src, url});
+const CONS = [
+ {p:'valuation', v:'match', news:[
+   S('The Shiller CAPE reached 41.2 in August, its highest since September 2000; only dot-com months ranked higher (record 44.2 in December 1999).', 'The Trading Tools, 13 Aug 2026', 'https://www.thetrading.tools/chart-of-the-day/2026-08-13-shiller-cape-highest-since-2000'),
+   S("Dean Baker's AI Bubble Monitor: market P/E 39.6 against Shiller's 43.8 peak in 2000, and US stock value more than 2.5 times GDP.", 'CEPR economist Dean Baker, 12 Jun 2026', 'https://www.radiofree.org/2026/06/12/the-ai-bubble-monitor-the-lay-of-the-land/'),
+   S('Goldman Sachs sees "no valuation bubble" in technology: the five largest stocks trade at only a slight forward P/E premium to the other 495.', 'Investing.com, 3 Aug 2026', 'https://www.investing.com/news/stock-market-news/goldman-the-real-ai-risk-is-an-earnings-bubble-not-valuations-4830442')],
+  data: () => [`CAPE ${fmt(mon.cape[L],1)}, higher than ${ind('v_cape')}% of months since 1881 (record ${fmt(capeMax.mx,1)} in ${ymS(capeMax.at)}).`, `Stock market value is ${fmt(mon.buff[L])}% of GDP, ${ind('v_buff') >= 99.5 ? 'a record in data from 1947' : 'higher than ' + ind('v_buff') + '% of months since 1947'}.`, `Pillar score ${mon.valuation[L]}.`],
+  why: "The index is as expensive as it has ever been on both measures, so the bubble camp's valuation claim holds. Goldman's narrower point, that big tech is not priced far above the rest of the market, also holds (see Benchmark): this is a whole-market valuation extreme rather than a tech-only one."},
+ {p:'expansion', v:'partly', news:[
+   S('Goldman Sachs: earnings, not multiples, have driven tech gains; the risk is "an earnings bubble". Implied 10-year earnings growth has accelerated beyond the 2000 peaks.', 'Investing.com, 3 Aug 2026', 'https://www.investing.com/news/stock-market-news/goldman-the-real-ai-risk-is-an-earnings-bubble-not-valuations-4830442'),
+   S('After-tax corporate profits are nearly twice their 2000 share of GDP.', 'CEPR economist Dean Baker, 12 Jun 2026', 'https://www.radiofree.org/2026/06/12/the-ai-bubble-monitor-the-lay-of-the-land/')],
+  data: () => [`Real price up ${fmt(rP36)}% in three years. Price growth minus industrial output growth is at the ${ind('x_ip36')}th percentile, and the CAPE's three-year rise at the ${ind('x_cape36')}th.`, `Price growth minus earnings growth over two years is at the ${ind('x_e24')}th percentile: ${ind('x_e24') < 50 ? 'real earnings rose about as fast as prices' : 'prices outran earnings'}.`, `Explosive-root test: real price ${mon.expl_p[L] ? 'explosive' : 'not explosive'} (${fmt(mon.bsadf[L],2)} vs ${fmt(mon.bsadf_cv[L],2)} needed); price against dividends or CAPE ${mon.expl_up[L] ? 'explosive' : 'not explosive'}.`, `Pillar score ${mon.expansion[L]}.`],
+  why: 'Prices have run far ahead of the real economy but not ahead of earnings. That is exactly the split the news describes, and it moves the question to whether record profit margins last. The formal bubble test fires on price alone, not on price relative to dividends or earnings, which is a weaker signal than 1929 or 1999 gave.'},
+ {p:'leverage', v:'match', news:[
+   S('FINRA margin debt reached $1.4156 trillion in May 2026, up 53.7% in a year and 6.17% of M2, just below the 6.35% dot-com record.', 'The Deep Dive, 6 Jul 2026', 'https://thedeepdive.ca/us-margin-debt-nears-dot-com-era-record-and-history-isnt-reassuring/'),
+   S('Leveraged ETF assets nearly doubled to $220 billion between late March and early June; a 3x semiconductor ETF fell 31% in one session on 5 June.', 'The Deep Dive, 6 Jul 2026', 'https://thedeepdive.ca/us-margin-debt-nears-dot-com-era-record-and-history-isnt-reassuring/')],
+  data: () => [...(snap.finra ? [`FINRA margin debt $${fmt(snap.finra.debit/1e6,2)} trillion in ${dS(snap.finra.month)}, the latest month published.`] : []), `Broker margin loans are ${fmt(mon.margin[L],2)}% of GDP: level and three-year change together at the ${ind('l_level')}th percentile since 1946.`, `Twelve-month margin growth at the ${ind('l_growth')}th percentile.`, `Pillar score ${mon.leverage[L]}.`],
+  why: 'Borrowed money is doing a large share of the buying, as the news says. In 1929, 2000, 2007 and 2021 the fall in margin debt came with the fall in prices, so this pillar matters most once prices start to slip.'},
+ {p:'fomo', v:'match', news:[
+   S('SpaceX priced the largest IPO in history: $75 billion raised at $135 a share, valuing it at about $1.77 trillion.', 'Chronicle.lu (AFP), 11 Jun 2026', 'https://chronicle.lu/category/international/61739-musks-spacex-prices-record-75bn-ipo-at-135-a-share'),
+   S('US IPO proceeds passed $110 billion by mid-June; Goldman Sachs forecasts a record $160 billion for 2026, with Anthropic and OpenAI reportedly next.', 'Crypto Briefing, Jun 2026', 'https://cryptobriefing.com/us-ipo-surge-120-billion-2026/')],
+  data: () => [`Households hold ${fmt(mon.hh[L],1)}% of their financial assets in stocks${mon.hh[L] > hhPrev.mx ? `, a record in data from 1946 (previous high ${fmt(hhPrev.mx,1)}% in ${ymS(hhPrev.at)})` : `, higher than ${ind('f_alloc')}% of quarters since 1946`}.`, `Real price up ${fmt(rP24)}% in two years, the ${ind('f_chase')}th percentile: strong chasing, short of the 1920s or 1990s pace.`, `Pillar score ${mon.fomo[L]}.`],
+  why: 'The public is more fully invested in stocks than at any time on record, and record IPO issuance is the classic late-cycle supply response. Both match the news.'},
+ {p:'fragility', v:'ahead', news:[
+   S('Stress among the smallest private-credit borrowers is up more than tenfold since 2023: 12% of loans to companies with $10–20 million of EBITDA are priced below 90% of par. Across all loans 7%, more than double the historical average.', 'Houlihan Lokey, 10 Sep 2026', 'https://hl.com/about-us/newsroom/houlihan-lokey-finds-that-stress-among-the-smallest-private-credit-borrowers-has-climbed-more-than-tenfold-since-2023/'),
+   S('A record share of private loans now pay interest in kind (11.8% of loans in Q2), but the largest borrowers "continue to perform".', 'Houlihan Lokey, 10 Sep 2026', 'https://hl.com/about-us/newsroom/houlihan-lokey-finds-that-stress-among-the-smallest-private-credit-borrowers-has-climbed-more-than-tenfold-since-2023/')],
+  data: () => [`Public credit is calm: Baa corporate yields only ${fmt(mon.spread[L],2)} points over Treasuries, tighter than ${ind('r_spread')}% of months since 1919.`, `Chicago Fed financial conditions are loose (score ${ind('r_nfci')}). Corporate bond debt relative to GDP scores ${ind('r_corp')}.`, `Pillar score ${mon.fragility[L]}.`],
+  why: 'The stress the news describes sits in loans that do not trade, so public spreads do not show it yet. Tight spreads with high corporate leverage is how 2007 looked a few months before spreads widened. Watch the credit-spread killer: it is off today.'},
+ {p:'benchmark', v:'partly', news:[
+   S('The ten largest S&P 500 stocks are roughly 40% of the index, up from about 19% ten years earlier.', 'Firstrade, 18 Aug 2026', 'https://blog.firstrade.com/blog/2026/index-concentration-explained-what-it-means-when-10-stocks-are-40-of-the-sp-500'),
+   S('On 29 October Alphabet fell 13%, its worst day on record, while the equal-weighted S&P 500 rose 1.2%.', 'The National (Reuters), 29 Oct 2026', 'https://www.thenationalnews.com/business/markets/2026/10/29/alphabet-google-stocks-ai/')],
+  data: () => [`Cap-weighted S&P against the equal-weighted version over three years: ${ind('k_conc')}th percentile since 2006.`, `Stocks barely out-yield inflation-protected bonds: excess CAPE yield ${fmt(mon.ecy[L],2)}%, more expensive than ${ind('k_ecy')}% of months since 1881.`, `Nasdaq against the S&P 500, measured against its own 5-year average: only the ${ind('k_ndx')}th percentile. Small caps lagging: ${ind('k_rut')}th.`, `Pillar score ${mon.benchmark[L]}.`],
+  why: 'Concentration and stocks-against-bonds both read as bubble-like, matching the news. Tech against the rest of the market does not: the Nasdaq is not unusually far ahead of the S&P 500 compared with its recent history, unlike 1999–2000.'},
+ {p:'trend', v:'match', news:[
+   S("GMO (Jeremy Grantham) defines a bubble as a 2-sigma move above trend. All 28 major bubbles in its 1997 study went all the way back to trend; it has since catalogued 330.", 'Outlook Business, on GMO research', 'https://www.outlookbusiness.com/perspective/looking-at-bubbles-the-statistical-way-936'),
+   S('A 100% industry run-up over two years predicts sharply higher crash odds; the odds rise further with volatility, issuance and acceleration.', 'Greenwood, Shleifer and You, "Bubbles for Fama", J. Financial Economics, 2019', 'https://econpapers.repec.org/RePEc:eee:jfinec:v:131:y:2019:i:1:p:20-43')],
+  data: () => [`Real price is ${fmt(sigNow,2)}σ above its 155-year trend. Only ${sigHigher[0]}–${sigHigher[sigHigher.length-1]} stood further above it; 1929 peaked at 2.3σ.`, `The index-level run-up is ${fmt(rP24)}% real in two years, well short of Greenwood's 100% industry threshold.`, `Pillar score ${mon.trend[L]}.`],
+  why: "By Grantham's definition the index is in a bubble. The run-up is broad and slow compared with industry-level manias, which makes the timing of any return to trend harder to call."},
+ {p:'killers', v:'ahead', news:[
+   S('The Fed raised rates to 3.75–4% in September, its first increase since 2023, then held on 28 October in a 10–2 vote with Lisa Cook and Beth Hammack wanting another hike. A December increase is widely expected.', 'Nation Thailand, 28 Oct 2026', 'https://www.nationthailand.com/news/world/40072859'),
+   S('September CPI rose 3.7% from a year earlier, above the 3.6% expected; the 10-year yield briefly topped 5.32% after the report.', 'investingLive, 14 Oct 2026; Ground News', 'https://investinglive.com/news/us-september-cpi-vs-3-6-expected-0/'),
+   S('US chip stocks were set to lose about $2 trillion of value after a selloff driven by rate-hike bets and the cost of the AI build-out.', 'Kitco (Reuters), 15 Oct 2026', 'https://www.kitco.com/news/off-the-wire/2026-10-15/us-chip-stocks-set-wipe-out-2-trillion-after-latest-selloff'),
+   S('The other side: the S&P 500 has risen in the 12 months after each of the 19 midterm elections since 1950, a small sample.', '24/7 Wall St, 4 May 2026', 'https://247wallst.com/politics/2026/05/04/stocks-have-never-posted-a-losing-year-after-a-midterm-election-since-1950-heres-why-that-matters-heading-into-2026-elections/')],
+  data: () => [`${mon.kill_n[L]} of ${mon.kill_avail[L]} killers on: ${killActive.map(k => KL[k]).join('; ')}.`, `Off: ${offK.map(k => KL[k]).join('; ')}.`, `The Fed funds rate is ${fmt(mon.ff[L],2)}% against ${fmt(mon.ff[L-12],2)}% a year earlier.`],
+  why: `The news is about tightening; the data shows it has barely started. In past bubble-zone months with 30% or more killers on, the next three years averaged ${fmt(kHi.fwd_real,1)}% real with a ${fmt(kHi.p25)}% chance of a 25% fall; with fewer than 15% on, ${fmt(kLo.fwd_real,1)}% and ${fmt(kLo.p25)}%. A second Fed hike, a 10-month-average break or wider credit spreads would each move this pillar.`},
+];
+const NWP = (NWS && NWS.pillars) || {};
+CONS.forEach(c => { const n = NWP[c.p]; if (!n) return; c.v = n.verdict || c.v; if (n.summary) c.why = n.summary; if (n.items && n.items.length) c.news = n.items.map(x => S(x.text, x.source + (x.date ? ', ' + dS(x.date) : ''), x.url)); c.tilt = n.tilt; });
+const VLAB = {match:['✓','Matches'], partly:['◐','Partly matches'], ahead:['↗','News ahead of the data'], contra:['✕','Contradicts'], untest:['?','Data can\'t test']};
+const chip = v => `<span class="chip ${v}">${VLAB[v][0]} ${VLAB[v][1]}</span>`;
+const cnt = {}; CONS.forEach(c => cnt[c.v] = (cnt[c.v] || 0) + 1);
+document.getElementById('consIntro').textContent = `${NWS ? (NWS.seed ? 'News: starting snapshot from the November 2026 research. ' : 'News checked ' + dS(NWS.asOf) + ': ' + (NWS.headline || '') + ' ') : ''}The data agrees outright on ${cnt.match || 0} of ${CONS.length} pillars and partly on ${cnt.partly || 0}. On ${cnt.ahead || 0} the news is ahead of the numbers${cnt.contra ? `, and on ${cnt.contra} they disagree` : ''}.`;
+document.getElementById('consNote').textContent = `${NWS && !NWS.seed ? 'News items come from the daily check (Claude with web search, ' + (NWS.model || '') + '). ' : 'News items are from the November 2026 research; add an Anthropic API key in Settings → Bubble Watch to refresh them daily. '}Data readings are the latest monthly values (${ymS(L)}, daily index to ${dS(snap.daily_last)}). The news tilt (${NWS ? (NWS.tilt >= 0 ? '+' : '') + fmt(NWS.tilt || 0, 1) : '0'} points) is the average of the pillar tilts times five, capped at 10, and is never added to the data score or used in any test.`;
+document.getElementById('consCount').innerHTML = ['match','partly','ahead'].map(v => `${chip(v)}<span class="hint" style="align-self:center">${cnt[v] || 0}</span>`).join('');
+document.getElementById('pillars').innerHTML = CONS.map(c => {
+  const title = c.p === 'killers' ? 'Momentum killers' : PLAB[c.p], term = c.p === 'killers' ? 'Easy momentum killers' : PLONG[c.p];
+  const score = c.p === 'killers' ? `${mon.kill_n[L]} of ${mon.kill_avail[L]} on` : `score ${mon[c.p][L]}`;
+  return `<article class="pill"><div class="hd"><div class="t"><h3>${title} <span class="mono" style="font-size:14px;color:var(--muted);font-weight:500">· ${score}</span></h3><span>${term}${c.tilt != null ? ` · news tilt ${c.tilt > 0 ? '+' : ''}${c.tilt}` : ''}</span></div>${chip(c.v || 'untest')}</div>
+   <div class="col"><h4>What the news and research say</h4><ul>${c.news.map(n => `<li>${esc(n.t)} <span class="src">— <a href="${n.url}" target="_blank" rel="noopener">${esc(n.src)}</a></span></li>`).join('')}</ul></div>
+   <div class="col"><h4>What the data says</h4><ul>${c.data().map(d => `<li>${esc(d)}</li>`).join('')}</ul></div>
+   <div class="why">${esc(c.why)}</div></article>`; }).join('');
+
+// ---------- article checker ----------
+const asof = document.getElementById('asof'); asof.min = '1891-01'; asof.max = ymIso(L); asof.value = ymIso(L);
+document.getElementById('asofLatest').onclick = () => { asof.value = ymIso(L); };
+const art = document.getElementById('art');
+art.value = 'Example (replace with your own text): Margin debt has hit a record as retail traders pile into leveraged AI funds. Strategists say the Fed\'s rate hikes will not stop the rally because earnings are growing as fast as prices, and credit markets show no sign of stress.';
+function snapshot(i) { const g = k => mon[k][i];
+  const indp = {}; Object.entries(IND).forEach(([k, lab]) => { const v = mon.ind[k][i]; if (v != null) indp[lab] = v; });
+  const act = [], off = [], na = []; DATA.killers.forEach((k, j) => { if (!(mon.ka[i] >> j & 1)) na.push(KL[k]); else ((mon.km[i] >> j & 1) ? act : off).push(KL[k]); });
+  const ps = {}; PIL.forEach(p => ps[PLONG[p]] = g(p));
+  return {month: ymIso(i), sp500_monthly_average: g('P'), bubble_score_0_100: g('froth'), zone: TIER[g('tier')], pillar_scores_0_100: ps,
+    indicator_percentiles_vs_all_earlier_months: indp,
+    explosive_root_test: {real_price: {statistic: g('bsadf'), needed_95pct: g('bsadf_cv'), explosive: !!g('expl_p')}, price_vs_dividends_or_cape_explosive: !!g('expl_up')},
+    sigma_above_long_run_trend: g('sigma'),
+    values: {cape: g('cape'), stock_value_to_gdp_pct: g('buff'), broker_margin_loans_to_gdp_pct: g('margin'), household_equity_share_of_financial_assets_pct: g('hh'), baa_minus_10y_pts: g('spread'), excess_cape_yield_pct: g('ecy'), ten_year_yield_pct: g('gs10'), short_rate_pct: g('ff')},
+    momentum_killers: {on: act, off, no_data_yet: na},
+    base_rates_since_1891: {by_bubble_score: DATA.val.map(r => ({score: `${r.lo}-${r.hi}`, months: r.n, avg_real_return_next_3y_pct: r.fwd_real, chance_of_25pct_fall_pct: r.p25})), score_65_plus_by_share_of_killers_on: DATA.valk.map(r => ({killers_on: r.lab, months: r.n, avg_real_return_next_3y_pct: r.fwd_real, chance_of_25pct_fall_pct: r.p25}))}}; }
+const go = document.getElementById('go'), stop = document.getElementById('stop'), st = document.getElementById('st'), res = document.getElementById('res');
+stop.hidden = true;
+(async () => { let ok = false; try { const S0 = BRIDGE && BRIDGE.getSettings ? await BRIDGE.getSettings() : null; ok = !!(S0 && S0.keys && S0.keys.anthropic) && !!BRIDGE.bubbleCheck; } catch (e) {} if (!ok) { go.hidden = true; document.getElementById('noSample').hidden = false; } })();
+go.onclick = async () => { const text = art.value.trim(); if (text.length < 20) { st.textContent = 'Paste at least a sentence or two.'; return; }
+  let i = idxOf(asof.value || ymIso(L)); if (!(i >= 240 && i <= L)) i = L;
+  go.disabled = true; st.textContent = 'Checking against ' + ymS(i) + '… this can take up to a minute.'; res.innerHTML = '';
+  try { const r = await BRIDGE.bubbleCheck(text, ymIso(i)); renderRes(r, i); st.textContent = ''; }
+  catch (e) { st.textContent = String(e.message || e).replace(/^Error invoking remote method '[^']+': (Error: )?/, ''); }
+  finally { go.disabled = false; } };
+const ERR = {invalid_json: 'The answer came back in the wrong shape. Try again.'};
+function renderRes(r, i) { if (!r || typeof r !== 'object') { st.textContent = ERR.invalid_json; return; }
+  const OV = {matches: 'match', mixed: 'partly', contradicts: 'contra', off_topic: 'untest'}, OVL = {matches: 'Text matches the data', mixed: 'Mixed', contradicts: 'Text contradicts the data', off_topic: 'Not about bubbles'};
+  const VV = {matches: 'match', partly: 'partly', contradicts: 'contra', untestable: 'untest'};
+  const ov = OV[r.overall] || 'untest'; const claims = Array.isArray(r.claims) ? r.claims.slice(0, 8) : [];
+  res.innerHTML = `<div class="bar"><span class="chip ${ov}">${OVL[r.overall] || 'No verdict'}</span><span class="hint">against ${ymS(i)} readings · bubble score ${fS(mon.froth[i])}</span></div>
+   <p>${esc(r.summary || '')}</p>
+   ${claims.length ? `<div class="tw"><table><thead><tr><th>Claim in the text</th><th>Pillar</th><th>Argues</th><th>What the data says</th><th>Verdict</th></tr></thead><tbody>${claims.map(c => { const v = VV[c.verdict] || 'untest';
+     return `<tr><td>${esc(c.claim || '')}</td><td>${esc(c.pillar === 'killers' ? 'Momentum killers' : (PLAB[c.pillar] || c.pillar || ''))}</td><td>${esc({bubble: 'Bubble risk', no_bubble: 'No bubble', neutral: 'Neutral'}[c.stance] || '')}</td><td class="q">${esc(c.data || '')}</td><td>${chip(v)}</td></tr>`; }).join('')}</tbody></table></div>` : ''}`; }
+
+// ---------- daily log ----------
+{ const lg = (DATA.scoreLog || []).slice().reverse();
+  document.getElementById('dlog').innerHTML = lg.length ? `<thead><tr><th>Day</th><th class="n">S&amp;P 500</th><th class="n">Bubble score</th><th class="n">Change</th><th>Zone</th><th class="n">Killers</th><th class="n">Crash-buy</th><th>Plan</th></tr></thead><tbody>${lg.map((x, k) => { const p = lg[k + 1], ch = p ? x.froth - p.froth : null;
+    return `<tr><td class="mono">${dS(x.date)}</td><td class="n">${fmt(x.close, 2)}</td><td class="n">${fmt(x.froth, 1)}</td><td class="n">${ch == null ? '–' : (ch >= 0 ? '+' : '') + fmt(ch, 1)}</td><td><span class="chip t${x.tier}">${TIER[x.tier]}</span></td><td class="n">${x.kill_n} of ${x.kill_avail}</td><td class="n">${x.crash}</td><td>${CSTAGE[x.stage] || ''}</td></tr>`; }).join('')}</tbody>` : '<tbody><tr><td>No daily refresh yet.</td></tr></tbody>'; }
+
+// ---------- crash buy ----------
+{ const F = DATA.fall, cc = mon.ccomp, sp = (v, d=0) => (v >= 0 ? '+' : '') + fmt(v, d);
+  const nextTxt = stNow === 0 ? 'Starts watching once the S&P is 10% below its 24-month high.' : stNow === 1 ? 'Buys the first third when the crash-buy score reaches 65.' : stNow === 2 ? 'Buys the second third after a further 20% fall or a score of 80, and the rest when the trend turns up.' : stNow === 3 ? 'Buys the rest when the S&P closes a month above its 10-month average.' : 'Fully bought. The plan resets once the S&P is back within 5% of its 24-month high.';
+  document.getElementById('crIntro').textContent = 'A separate score for buying into a crash, built from what the bubble research found: how far prices have fallen, how much of the bubble has been let out, how frightened the market is, whether credit stress has peaked, whether the Fed is cutting, and whether the trend has turned back up. It works on monthly data like the bubble score, and is updated with each daily refresh.';
+  document.getElementById('crNow').innerHTML = `
+   <div class="card"><div class="k">Crash-buy score, ${ymS(L)}</div><div class="big">${fS(crNow)}<small>/ 100</small></div><p>65 or more buys the first third.</p></div>
+   <div class="card"><div class="k">Plan stage</div><div class="big" style="font-size:20px">${CSTAGE[stNow]}</div><p>${nextTxt}</p></div>
+   <div class="card"><div class="k">Below 24-month high</div><div class="big">${fmt(-mon.dd24[L],1)}%</div><p>Monthly average. The daily close is ${fmt(-fromHigh,1)}% below the ${dS(snap.high_date)} record.</p></div>
+   <div class="card"><div class="k">Plan holding</div><div class="big">${Math.round(mon.cw[L]*3)}<small>of 3 thirds</small></div><p>Of the money set aside for buying the crash.</p></div>`;
+  const comp = [['depth', 30, 'Depth of the fall', `S&P ${fmt(-mon.dd24[L],1)}% below its 24-month high. Full marks at 40%.`], ['reset', 20, 'Bubble let out', `Bubble score ${fS(mon.froth[L])}; full marks once it is 30 points below its 3-year high.`],
+    ['fear', 15, 'Fear', `21-day volatility ${fmt(mon.vol[L])}% a year${mon.vix[L] != null ? ' (VIX month average ' + fmt(mon.vix[L],1) + ')' : ''}. Full marks at 45%.`], ['credit', 10, 'Credit stress peaking', `Baa spread ${fmt(mon.spread[L],2)} points. Half marks once it is 0.5 point above its 12-month low, full marks once it has turned down.`],
+    ['ease', 10, 'Fed easing', `Short rate ${fmt(mon.ff[L],2)}%. Full marks once it is 1.5 points below its 12-month high.`], ['turn', 15, 'Trend turned up', `On once the S&P closes a month above its 10-month average after a 15% fall.`]];
+  document.getElementById('crComp').innerHTML = comp.map(([k, mx, lab, w]) => `<span>${lab}</span><span class="tr"><i style="width:${(cc[k][L] || 0)/mx*100}%"></i></span><span class="v">${fmt(cc[k][L] || 0)}/${mx}</span><span class="w">${w}</span>`).join('');
+  const pr = F.price, lvl = f => fmt(pr * (1 + f/100), 0);
+  const bq = F.bears;
+  let h = `<p>${F.nearN} months since 1891 had a bubble score within 5 points of today's ${fS(F.froth)}. Within the next three years the S&amp;P fell (from that month's average) by at least:</p>
+   <div class="bars2">${F.probs.map(p => `<span>${p.fall}%</span><span class="tr"><i style="width:${p.pct}%;background:var(--froth)"></i></span><span class="v">${p.pct}%</span>`).join('')}</div>
+   <p class="hint">Those months cluster in a few episodes (1929, the late 1990s, 2021), so the sample is smaller than it looks.</p>
+   <p>If a bear market comes, the ${bq.n} bear markets since 1887 fell a median ${fmt(-bq.median*100,0)}% from their peak; the middle half fell ${fmt(-bq.q75*100,0)}% to ${fmt(-bq.q25*100,0)}%, and the worst tenth ${fmt(-bq.q10*100,0)}% or more. From the ${dS(snap.high_date)} record of ${fmt(snap.high,0)}, a median bear market would take the S&amp;P to about ${fmt(snap.high*(1+bq.median),0)}.</p>`;
+  if (F.depthNow <= -0.2 && F.cond) h += `<p><b>Already ${fmt(-F.depthNow*100,0)}% down.</b> The ${F.cond.n} bear markets that got this deep ended a median ${fmt(-F.cond.median*100,0)}% below their peak (middle half ${fmt(-F.cond.q75*100,0)}% to ${fmt(-F.cond.q25*100,0)}%).</p>`;
+  h += `<div class="tw"><table><thead><tr><th>Valuation anchor</th><th class="n">CAPE</th><th class="n">Fall from ${ymS(L)} average</th><th class="n">S&amp;P level</th></tr></thead><tbody>${F.anchors.map(a => `<tr><td>${a.label}</td><td class="n">${a.cape != null ? fmt(a.cape,1) : '–'}</td><td class="n">${a.fall}%</td><td class="n">${lvl(a.fall)}</td></tr>`).join('')}</tbody></table></div>
+   <p class="hint">Valuation anchors are where prices would sit if valuations went back to a past norm with earnings unchanged. Past bear markets rarely went all the way: only 1929–32 and 2008–09 passed the long-run median CAPE.</p>`;
+  document.getElementById('crFall').innerHTML = h;
+  document.getElementById('crPlanTxt').textContent = 'Buy a third of the money set aside when the crash-buy score reaches 65; another third after a further 20% fall or a score of 80; the rest when the S&P closes a month above its 10-month average after a 15% fall. In the table, cost is the average buying price against the bear market’s monthly low; a lower number is better. Buying the whole amount at the first 20% fall is shown for comparison.';
+  document.getElementById('crPlan').innerHTML = `<thead><tr><th>Bear market peak</th><th class="n">Decline</th><th>Plan buys</th><th class="n">Plan cost vs low</th><th class="n">Buy at −20%: cost vs low</th></tr></thead><tbody>${(DATA.plan || []).map(p => `<tr><td class="mono">${dS(p.peak)}</td><td class="n">${fmt(p.dd,1)}%</td><td>${p.buys.map(b => `${dS(b.month)} (${b.share > .99 ? 'all' : b.share > .6 ? '⅔' : '⅓'})`).join(', ') || '–'}</td><td class="n">${p.plan_cost == null ? '–' : '+' + p.plan_cost + '%'}</td><td class="n">${p.at20_cost == null ? 'never 20% down (monthly)' : '+' + p.at20_cost + '%'}</td></tr>`).join('')}</tbody>`;
+  document.getElementById('crVal').innerHTML = (DATA.cval || []).map(e => `<div class="tw"><table><thead><tr><th>${e.era}: crash-buy score</th><th class="n">Months</th><th class="n">Real, 12 months</th><th class="n">Real, 36 months</th><th class="n">Median further fall</th><th class="n">Further 15% fall</th></tr></thead><tbody>${e.rows.map(r => `<tr><td>${r.lo}–${r.hi}</td><td class="n">${r.n}</td><td class="n">${r.n ? sp(r.fwd12,1) + '%' : '–'}</td><td class="n">${r.n ? sp(r.fwd36,1) + '%' : '–'}</td><td class="n">${r.n ? fmt(r.further,1) + '%' : '–'}</td><td class="n">${r.n ? r.p15 + '%' : '–'}</td></tr>`).join('')}</tbody></table></div>`).join('') + '<p class="hint">The 51–65 band did badly in the design years because of 1930–31, when the market looked washed out and then fell another 70%. That is why the plan buys in thirds instead of all at once.</p>';
+  const BT = [['Buy and hold', '6.06%', '−86.2%', '8.07%', '−56.8%', '6.30%', '−56.8%'], ["Stock bot's market filter (S&P above its 200-day average)", '7.93%', '−48.9%', '8.53%', '−22.1%', '5.29%', '−19.2%'], ['Filter + bubble guard', '7.77%', '−48.9%', '8.30%', '−24.6%', '5.06%', '−19.2%'], ['Filter + crash buying', '7.32%', '−85.6%', '8.77%', '−45.3%', '5.11%', '−43.0%'], ['Filter + guard + crash buying', '7.16%', '−85.6%', '8.54%', '−45.8%', '4.88%', '−39.6%']];
+  document.getElementById('crBot').innerHTML = `<p>Before wiring this into the stock bot, it was tested on the S&amp;P 500 itself, daily, as a stand-in for the bot's market filter. The bubble guard moves to cash when the bubble zone and 30% or more killers are on at the same time; crash buying holds the plan's thirds while the market filter is still off. Price only; cash earns the T-bill rate.</p>
+   <div class="tw"><table><thead><tr><th>Strategy</th><th class="n">From 1929: a year</th><th class="n">Worst fall</th><th class="n">From 1970: a year</th><th class="n">Worst fall</th><th class="n">From 2000: a year</th><th class="n">Worst fall</th></tr></thead><tbody>${BT.map(r => `<tr><td>${r[0]}</td>${r.slice(1).map(x => `<td class="n">${x}</td>`).join('')}</tr>`).join('')}</tbody></table></div>
+   <p>Neither addition beat the filter the bot already uses: the 200-day average gets back in after crashes about as early, without sitting through the second leg down. So the stock bot's trades are unchanged. The stock bot's page shows the Bubble Watch reading for information, and this tab is for decisions you make yourself, such as when to add new money.</p>`;
+}
+
+// ---------- history ----------
+const bears = DATA.bears.filter(b => b.max_froth_24m != null);
+const closed = DATA.episodes.filter(e => !e.ongoing), hits = closed.filter(e => e.followed_by_bear).length;
+const big = bears.filter(b => b.dd <= -30);
+document.getElementById('stats').innerHTML = `
+ <div class="card"><div class="k">Bubble zones that ended badly</div><div class="big">${hits}<small>of ${closed.length}</small></div><p>Closed bubble-zone episodes followed by a 20% or larger decline starting within the episode or the two years after it.</p></div>
+ <div class="card"><div class="k">Bear markets flagged beforehand</div><div class="big">${bears.filter(b => b.flagged).length}<small>of ${bears.length}</small></div><p>20% declines since 1887 with a bubble-zone month in the 24 months before the peak. ${bears.filter(b => b.elevated).length} of ${bears.length} had at least an elevated reading.</p></div>
+ <div class="card"><div class="k">Falls of 30% or more flagged</div><div class="big">${big.filter(b => b.flagged).length}<small>of ${big.length}</small></div><p>${big.filter(b => b.elevated).length} of ${big.length} had at least an elevated reading. The misses are mostly war, inflation and rate shocks.</p></div>`;
+const FAM = [
+ ['1929-09-16', 'Roaring Twenties', 'Irving Fisher, Oct 1929: "Stock prices have reached what looks like a permanently high plateau."', 'Data before 1934 has no short-term rates, so the Fed\'s 1928–29 hikes and the brokers\'-loan boom do not register.'],
+ ['1937-03-10', '1937 relapse', 'Talk of full recovery after the index more than doubled from 1935. The Fed doubled bank reserve requirements in 1936–37.', 'Reserve requirements are not one of the tracked killers.'],
+ ['1946-05-29', 'Post-war boom', 'A post-war spending boom. Price controls lapsed in mid-1946 and inflation jumped.', ''],
+ ['1956-08-02', '1950s boom', 'The Senate Banking Committee held a "stock market study" in 1955 asking whether 1929 could repeat; J. K. Galbraith testified.', ''],
+ ['1961-12-12', 'Tronics boom', 'A new-issue boom in electronics stocks with "-tronics" names. The "Kennedy slide" followed.', ''],
+ ['1968-11-29', 'Go-go years', '"Performance" funds and conglomerates chased growth; small speculative stocks led.', ''],
+ ['1973-01-11', 'Nifty Fifty', 'The Nifty Fifty were sold as "one-decision" stocks: buy them and never sell.', 'Concentration in a few large stocks is only measurable here from 2003.'],
+ ['1987-08-25', '1987 crash', 'Portfolio insurance was meant to cap losses. On 19 October the index fell 20.5% in a day.', ''],
+ ['2000-03-24', 'Dot-com', 'Alan Greenspan, Dec 1996: "irrational exuberance". The index then rose for more than three years.', ''],
+ ['2007-10-09', 'Housing and credit', 'Ben Bernanke, Mar 2007: subprime problems "seem likely to be contained". Citigroup\'s Chuck Prince, Jul 2007: "we\'re still dancing."', 'Just under the 75 line, with credit spreads widening and financial conditions tightening.'],
+ ['2020-02-19', 'Pandemic shock', 'Not called a bubble. A pandemic shut the economy.', 'A shock can break a market that is only moderately frothy.'],
+ ['2022-01-03', 'Stimulus boom', 'Meme stocks, SPACs and crypto. The Fed called inflation "transitory" through most of 2021.', '']];
+const famRows = FAM.map(([pk, name, said, note]) => { const i = idxOf(pk.slice(0, 7)); const b = DATA.bears.find(x => x.peak === pk);
+  const top = PIL.map(p => [p, mon[p][i]]).filter(x => x[1] != null).sort((a, b) => b[1] - a[1]).slice(0, 3).map(x => `${PLAB[x[0]]} ${x[1]}`).join(', ');
+  return `<tr><td><b>${name}</b><div class="q">peak ${dS(pk)}</div></td><td>${esc(said)}</td><td><span class="chip t${mon.tier[i]}">${TIER[mon.tier[i]]} ${fS(mon.froth[i])}</span><div class="q" style="margin-top:4px">Highest: ${top}. Killers ${mon.kill_n[i]} of ${mon.kill_avail[i]}. ${mon.expl_p[i] || mon.expl_up[i] ? 'Explosive test firing.' : 'Explosive test quiet.'}${note ? ' ' + esc(note) : ''}</div></td><td class="n">${b ? fmt(b.dd,1) + '%' : '–'}<div class="q">${b ? 'to ' + dS(b.trough) : ''}</div></td></tr>`; });
+const iL = L; const topL = PIL.map(p => [p, mon[p][iL]]).sort((a, b) => b[1] - a[1]).slice(0, 3).map(x => `${PLAB[x[0]]} ${x[1]}`).join(', ');
+famRows.push(`<tr><td><b>AI build-out</b><div class="q">high ${dS(snap.high_date)}</div></td><td>AI bubble warnings from Dean Baker and others; Goldman Sachs says earnings, not valuations, drive it. See the Consensus tab.</td><td><span class="chip t${mon.tier[iL]}">${TIER[mon.tier[iL]]} ${fS(mon.froth[iL])}</span><div class="q" style="margin-top:4px">Highest: ${topL}. Killers ${mon.kill_n[iL]} of ${mon.kill_avail[iL]}. Explosive test firing on real price.</div></td><td class="n">${fmt(fromHigh,1)}%<div class="q">so far, ${dS(snap.daily_last)}</div></td></tr>`);
+document.getElementById('famous').innerHTML = `<thead><tr><th>Episode</th><th>What people said</th><th>What the data said at the peak month</th><th class="n">Decline</th></tr></thead><tbody>${famRows.join('')}</tbody>`;
+document.getElementById('eps').innerHTML = `<thead><tr><th>Episode</th><th class="n">Months</th><th class="n">Top score</th><th>Explosive</th><th class="n">Killers max</th><th>High</th><th class="n">Decline</th><th>Recovered</th></tr></thead><tbody>${DATA.episodes.map(e => `<tr><td class="mono">${dS(e.start)} – ${e.ongoing ? 'now' : dS(e.end)}</td><td class="n">${e.months}</td><td class="n">${fS(e.max_froth)}</td><td>${e.explosive ? 'Yes' : 'No'}</td><td class="n">${e.max_kill}</td><td class="mono">${dS(e.peak)}</td><td class="n">${e.dd == null ? (fmt(fromHigh,1) + '% so far') : fmt(e.dd,1) + '%'}</td><td class="mono">${e.recovered ? dS(e.recovered) : (e.ongoing ? '–' : 'within 10 years: no')}</td></tr>`).join('')}</tbody>`;
+document.getElementById('valt').innerHTML = `<thead><tr><th>Bubble score</th><th class="n">Months</th><th class="n">Avg real return, next 3 years</th><th class="n">Median deepest fall within 3 years</th><th class="n">Chance of a 25% fall</th></tr></thead><tbody>${DATA.val.map(r => `<tr><td>${r.lo}–${r.hi}${r.lo === 75 ? ' <span class="chip t2">Bubble zone</span>' : r.lo === 65 ? ' <span class="chip t1">Elevated</span>' : ''}</td><td class="n">${fmt(r.n)}</td><td class="n">${r.fwd_real >= 0 ? '+' : ''}${fmt(r.fwd_real,1)}%</td><td class="n">${fmt(r.dd_med,1)}%</td><td class="n">${fmt(r.p25)}%</td></tr>`).join('')}</tbody>`;
+document.getElementById('valk').innerHTML = `<thead><tr><th>Score 65+ and share of killers on</th><th class="n">Months</th><th class="n">Avg real return, next 3 years</th><th class="n">Chance of a 25% fall</th></tr></thead><tbody>${DATA.valk.map(r => `<tr><td>${r.lab}</td><td class="n">${fmt(r.n)}</td><td class="n">${r.fwd_real >= 0 ? '+' : ''}${fmt(r.fwd_real,1)}%</td><td class="n">${fmt(r.p25)}%</td></tr>`).join('')}</tbody>`;
+document.getElementById('bears').innerHTML = `<thead><tr><th>Peak</th><th>Low</th><th class="n">Decline</th><th class="n">Highest score in 24 months before</th><th>Reading</th><th class="n">Killers at peak</th></tr></thead><tbody>${DATA.bears.map(b => `<tr><td class="mono">${dS(b.peak)}</td><td class="mono">${dS(b.trough)}</td><td class="n">${fmt(b.dd,1)}%</td><td class="n">${b.max_froth_24m == null ? '–' : fS(b.max_froth_24m)}</td><td>${b.max_froth_24m == null ? '<span class="q">before scores start</span>' : b.flagged ? '<span class="chip t2">Bubble zone</span>' : b.elevated ? '<span class="chip t1">Elevated</span>' : '<span class="chip t0">Normal</span>'}</td><td class="n">${b.kill_at_peak == null ? '–' : b.kill_at_peak}</td></tr>`).join('')}</tbody>`;
+
+// ---------- method ----------
+const USERT = {valuation:'"Overevaluation of asset"', expansion:'"Quick or sudden expansion that doesn\'t match the output"', leverage:'"False momentum from dumb money"', fomo:'"FOMO from the general public"', fragility:'"Backdoor problems that may lead to instability"', benchmark:'"Evaluation compared to the benchmark companies"', trend:'Added from the research (Grantham)'};
+document.getElementById('methP').innerHTML = PIL.map(p => `<dt>${PLAB[p]}<div class="q" style="font-weight:400;font-size:13px">${USERT[p]}</div></dt><dd>${PIND[p].map(k => IND[k]).join('; ')}.<div class="q">${PSRC[p]}.</div></dd>`).join('') + `<dt>Momentum killers<div class="q" style="font-weight:400;font-size:13px">"Easy momentum killer"</div></dt><dd>Reported beside the score rather than inside it, because they say when, not whether.</dd>`;
+document.getElementById('methK').innerHTML = DATA.killers.map(k => `<dt>${KL[k]}</dt><dd class="q">${KS[k]}</dd>`).join('');
+const SRC = [
+ ['Robert Shiller, U.S. stock market data (ie_data.xls, updated Oct 2026)', 'https://shillerdata.com/'],
+ ['Federal Reserve Bank of St. Louis, FRED (Z.1, GDP, rates, NFCI, credit, CPI, unemployment)', 'https://fred.stlouisfed.org/'],
+ ['FINRA, margin statistics', 'https://www.finra.org/rules-guidance/key-topics/margin-accounts/margin-statistics'],
+ ['Yahoo Finance daily index history (^GSPC from 1927, ^IXIC, ^RUT, RSP)', 'https://finance.yahoo.com/quote/%5EGSPC/history/'],
+ ['Phillips, Shi and Yu, "Testing for multiple bubbles: historical episodes of exuberance and collapse in the S&P 500"', 'https://papers.ssrn.com/abstract=1981976'],
+ ['Greenwood, Shleifer and You, "Bubbles for Fama", Journal of Financial Economics 2019', 'https://econpapers.repec.org/RePEc:eee:jfinec:v:131:y:2019:i:1:p:20-43'],
+ ['Philosophical Economics, "The single greatest predictor of future stock market returns" (household equity allocation)', 'https://www.philosophicaleconomics.com/2013/12/the-single-greatest-predictor-of-future-stock-market-returns/'],
+ ...[...new Map(CONS.flatMap(c => c.news).map(n => [n.url, n.src])).entries()].map(([u, s]) => [s, u]),
+ ['Ground News, "10-year Treasury yield briefly tops 5.32% after hotter CPI"', 'https://ground.news/daily-briefing/1d17e18b-f14e-4183-b479-2358af17ce87']];
+document.getElementById('srcs').innerHTML = SRC.map(([t, u]) => `<li><a href="${u}" target="_blank" rel="noopener">${esc(t)}</a></li>`).join('');
+
+hover = L; renderIns(); show();
+})();
+</script>
+</body></html>

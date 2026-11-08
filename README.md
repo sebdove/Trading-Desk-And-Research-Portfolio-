@@ -1,9 +1,9 @@
 # PVSRA Vector Desk
 
-A Windows desktop app that runs four trading bots side by side (crypto, Bitcoin trend, S&P 500 stocks and futures momentum), sharing one pot of money. Tested from January 2020 to November 2026.
+**Trading Desk** is a Windows desktop app that runs four trading bots side by side (crypto, Bitcoin trend, S&P 500 stocks and futures momentum), sharing one pot of money. Tested from January 2020 to November 2026.
 
 - **Project page (the research and results):** https://sebdove.github.io/Trading-Desk-And-Research-Portfolio-/
-- **Download the app:** [Trading-Desk-Setup-2.2.1.exe](https://github.com/sebdove/Trading-Desk-And-Research-Portfolio-/releases/download/v2.2.1/Trading-Desk-Setup-2.2.1.exe) (all versions on the [Releases](https://github.com/sebdove/Trading-Desk-And-Research-Portfolio-/releases) page) (Windows 10 or 11)
+- **Download the app:** [Trading-Desk-Setup.exe](https://github.com/sebdove/Trading-Desk-And-Research-Portfolio-/releases/latest/download/Trading-Desk-Setup.exe), version 2.2.2 (all versions on the [Releases](https://github.com/sebdove/Trading-Desk-And-Research-Portfolio-/releases) page) (Windows 10 or 11)
 - **Source code:** the [`app`](app) folder
 
 ## What's in this repository

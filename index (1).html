@@ -1,0 +1,462 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Trading Desk</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Karla:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<script src="/lw.js"></script>
+<script src="/draw.js"></script>
+<style>
+/* Same tokens as the PVSRA Vector Desk, Simple view */
+:root{
+  --bg:#11181d; --panel:#141d23; --panel-2:#1a242b; --line:#27323a; --chart-bg:#0c1016; --fg:#d6dce4; --muted:#7f8b9b;
+  --accent:#d9a441; --accent-ink:#1b1405; --grid:rgba(127,139,155,.09); --cross:#7f8b9b;
+  --up:#26b37a; --down:#e0474f;
+  --c-up:#00e65c; --c-dn:#ff2d3d; --r-up:#3d7bff; --r-dn:#ff3dff; --n-up:#9aa3ae; --n-dn:#545c68;
+  --sans:"Karla",system-ui,sans-serif; --display:"Barlow Condensed","Arial Narrow",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,"SFMono-Regular",Menlo,monospace; color-scheme:dark }
+@media (prefers-color-scheme: light){ :root:not([data-theme="dark"]){
+  --bg:#f3f5f8; --panel:#ffffff; --panel-2:#edf0f4; --line:#d8dee6; --fg:#17202b; --muted:#5c6878;
+  --accent:#a8771a; --accent-ink:#fff8ea; --grid:rgba(92,104,120,.10); --cross:#5c6878; --up:#13945f; --down:#cc2f38;
+  --c-up:#00a83a; --c-dn:#e0162b; --r-up:#1f4fff; --r-dn:#c800c8; --n-up:#adb4bd; --n-dn:#4f5763; color-scheme:light }}
+html,body{height:100%}*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--sans);font-size:14px;display:flex;flex-direction:column;overflow:hidden}
+button{font:inherit;color:inherit}:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.bar{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;background:var(--panel);border-bottom:1px solid var(--line);padding:8px max(16px,env(safe-area-inset-left,0px))}
+.brand{display:flex;align-items:baseline;gap:8px;font-weight:700;letter-spacing:.02em;font-size:15px;white-space:nowrap}
+.brand b{color:var(--accent)}.brand small{font-weight:500;color:var(--muted);font-size:11px;letter-spacing:.08em;text-transform:uppercase}
+.seg{display:flex;gap:2px;background:var(--panel-2);border:1px solid var(--line);border-radius:6px;padding:2px;max-width:100%;overflow-x:auto;scrollbar-width:thin}
+.seg button{border:0;background:none;padding:5px 10px;border-radius:4px;cursor:pointer;font-family:var(--mono);font-size:12px;color:var(--muted);white-space:nowrap;display:flex;align-items:center;gap:6px}
+.seg button:hover{color:var(--fg)}.seg button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
+.seg .tag{font-size:9.5px;letter-spacing:.06em;opacity:.75}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--muted);flex:none}.dot.open{background:var(--c-up)}
+.sp{flex:1}.chip{font-family:var(--mono);font-size:11px;padding:3px 8px;border-radius:999px;border:1px solid var(--line);white-space:nowrap;color:var(--muted)}
+.chip.live{color:var(--c-dn);border-color:color-mix(in srgb,var(--c-dn) 50%,transparent)}.chip.paper{color:var(--r-up);border-color:color-mix(in srgb,var(--r-up) 50%,transparent)}
+.body{flex:1;display:flex;min-height:0}
+.main{flex:1;min-width:0;display:flex;flex-direction:column;position:relative}
+aside{width:340px;flex:none;border-left:1px solid var(--line);background:var(--panel);overflow-y:auto;padding:14px 16px 28px}
+aside h2{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin:18px 0 8px;font-weight:600}aside h2:first-child{margin-top:0}
+.empty{color:var(--muted);font-size:13px;padding:6px 0}
+.hist{font-family:var(--mono);font-size:9.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);border:1px solid var(--line);border-radius:3px;padding:0 4px;vertical-align:1px}.hsnote{font-size:12px;margin:10px 0 0}
+.sigtg{float:right;font:inherit;font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);background:none;border:1px solid var(--line);border-radius:4px;padding:2px 6px;cursor:pointer}.sigtg:hover{color:var(--fg)}.sigkv{margin-bottom:6px}
+/* model view */
+.cards{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;padding:14px 16px 0}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px 12px;min-width:0}
+.card .k{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.card .v{font-family:var(--mono);font-size:22px;font-weight:500;margin-top:2px;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.card .s{font-family:var(--mono);font-size:12px;color:var(--muted)}
+.pos{color:var(--up)}.neg{color:var(--down)}
+.eqwrap{flex:1;min-height:240px;margin:12px 16px 16px;border:1px solid var(--line);border-radius:8px;background:var(--panel);position:relative}
+.eqwrap .ttl{position:absolute;top:8px;left:12px;z-index:2;font-size:12px;color:var(--muted);font-family:var(--mono)}
+#eq{position:absolute;inset:28px 0 0 0}
+.row{display:grid;grid-template-columns:1fr auto;gap:2px 8px;padding:8px 10px;margin:0 -10px;border-radius:6px;cursor:pointer;font-family:var(--mono);font-size:12.5px;font-variant-numeric:tabular-nums}
+.row:hover{background:var(--panel-2)}.row .r{text-align:right}.row .m{color:var(--muted);font-size:11.5px}
+.sigcard{border:1px solid var(--line);border-radius:8px;padding:10px 12px;background:var(--panel-2);margin-bottom:8px}
+.sigcard .top{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px}
+.sigcard .side{font-family:var(--mono);font-weight:600;font-size:13px;letter-spacing:.04em}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:3px 12px;font-size:12.5px}.kv span:nth-child(odd){color:var(--muted)}.kv span:nth-child(even){font-family:var(--mono);text-align:right}
+.rule{font-size:12.5px;color:var(--muted);line-height:1.5;margin:8px 0 0}
+
+.tl.tr{cursor:pointer}.tl{font-family:var(--mono);font-size:12px;display:grid;grid-template-columns:1fr auto;gap:1px 10px;padding:6px 0;border-top:1px solid var(--line)}.tl .w{grid-column:1/-1;color:var(--muted);font-size:11.5px}.tl:first-of-type{border-top:0}
+.tl .m{color:var(--muted)}
+/* asset view: chart in Simple view */
+#wrap{position:absolute;inset:0}#tfs{position:absolute;left:8px;bottom:54px;z-index:4;display:flex;gap:2px;padding:2px;border:1px solid var(--line);border-radius:7px;background:var(--panel);box-shadow:0 2px 8px rgba(0,0,0,.25)}#tfs button{font-family:var(--mono);font-size:12px;padding:4px 8px;border:0;border-radius:5px;background:none;color:var(--muted);cursor:pointer;position:relative}#tfs button:hover:not(:disabled){color:var(--fg)}#tfs button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}#tfs button:disabled{opacity:.35;cursor:not-allowed}#tfs button.bot::after{content:"";position:absolute;top:2px;right:2px;width:4px;height:4px;border-radius:50%;background:currentColor}#tfnote{position:absolute;left:8px;bottom:92px;z-index:4;font-size:12px;color:var(--muted);background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:4px 8px;max-width:60%}#centre{position:absolute;right:76px;bottom:54px;z-index:4;font-family:var(--mono);font-size:12px;font-weight:500;padding:5px 10px;border-radius:6px;border:1px solid var(--line);background:var(--panel);color:var(--fg);cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.25)}#centre:hover{border-color:var(--accent);color:var(--accent)}#chart{position:absolute;inset:0}#back{position:absolute;inset:0;pointer-events:none;z-index:2}
+.legend{position:absolute;z-index:3;top:8px;left:12px;pointer-events:none;font-family:var(--mono);font-size:12px;line-height:1.55;max-width:calc(100% - 330px)}
+.legend .l1{font-family:var(--sans);font-size:13px;display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}.legend .l1 b{font-family:var(--mono);font-size:14px}
+.legend .m{color:var(--muted)}
+.status{position:absolute;z-index:3;top:8px;right:84px;background:color-mix(in srgb,var(--bg) 92%,transparent);border-left:3px solid var(--muted);padding:5px 10px;font-family:var(--mono);font-size:11px;line-height:1.5;pointer-events:none}
+.status .a{font-weight:600}
+.cons .score{font-family:var(--mono);font-size:34px;line-height:1;font-weight:500}.cons .lab{font-weight:600;font-size:15px;margin-left:8px}
+.gauge{position:relative;height:8px;border-radius:4px;margin:10px 0 4px;background:linear-gradient(90deg,var(--c-dn) 0 20%,var(--r-dn) 20% 35%,var(--n-dn) 35% 45%,var(--muted) 45% 55%,var(--n-up) 55% 65%,var(--r-up) 65% 80%,var(--c-up) 80% 100%)}
+.gauge i{position:absolute;top:-4px;width:4px;height:16px;border-radius:2px;background:var(--fg);box-shadow:0 0 0 2px var(--panel)}
+.votes{display:flex;gap:6px;margin-top:10px}
+.cons .head{display:flex;align-items:baseline;gap:10px}.cons .since{font-size:12px;color:var(--muted);margin-top:2px}
+.gauge-l{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);font-family:var(--mono)}
+.ckey{display:flex;flex-wrap:wrap;gap:3px 10px;font-size:11px;color:var(--muted);margin-top:8px}.ckey span{display:flex;align-items:center;gap:4px}.ckey i{width:8px;height:8px;border-radius:2px;display:block}
+.mvotes{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:7px;overflow:hidden;margin-top:10px}
+.mvote{display:grid;grid-template-columns:4px minmax(0,1fr) auto;gap:10px;align-items:center;padding:8px 10px 8px 0;border-top:1px solid var(--line);background:var(--panel-2)}
+.mvote:first-child{border-top:0}.mvote>i{align-self:stretch;display:block}
+.mvote .nm{font-weight:600;font-size:13px}.mvote .why{font-size:12px;color:var(--muted);line-height:1.35}
+.mvote .vv{font-family:var(--mono);font-size:11.5px;font-weight:500;padding:2px 7px;border-radius:4px;white-space:nowrap}
+.bspark{display:block;width:100%;height:34px;margin-top:6px}
+.votes b{font-family:var(--mono);font-size:11px;font-weight:500;padding:3px 6px;border-radius:4px;border:1px solid var(--line)}
+.notice{margin:auto;max-width:520px;text-align:center;color:var(--muted);padding:30px 20px;line-height:1.6}.notice code{font-family:var(--mono);color:var(--fg);background:var(--panel-2);padding:2px 6px;border-radius:4px}
+[hidden]{display:none!important}
+@media (max-width:860px){.body{flex-direction:column;overflow-y:auto}aside{width:auto;border-left:0;border-top:1px solid var(--line)}.main{min-height:440px}.cards{grid-template-columns:repeat(2,minmax(0,1fr))}.legend{max-width:calc(100% - 24px)}.status{top:auto;bottom:34px;right:8px}}
+
+/* bot colours, used like the Bubble Watch banner on the stock page: a coloured left edge and a coloured label */
+:root{--b-desk:#26b37a;--b-stocks:#7cc6ff;--b-crypto:#b9a6ff;--b-trend:#ffd166;--b-momentum:#ff8a65;--b-combo:#9fd8c0}
+@media (prefers-color-scheme: light){ :root:not([data-theme="dark"]){--b-desk:#13945f;--b-stocks:#1f6fb0;--b-crypto:#6a50d8;--b-trend:#946812;--b-momentum:#c4532e;--b-combo:#2a7d63}}
+#models button[data-m="desk"],.m-desk{--bc:var(--b-desk)}#models button[data-m="stocks"],#assets button.m-stocks{--bc:var(--b-stocks)}
+#models button[data-m="crypto"],#assets button.m-crypto{--bc:var(--b-crypto)}#models button[data-m="trend"],#assets button.m-trend{--bc:var(--b-trend)}
+#models button[data-m="momentum"]{--bc:var(--b-momentum)}#models button[data-m="combo"]{--bc:var(--b-combo)}
+#models,#assets,#bubbleSeg{background:none;border:0;padding:0;gap:6px}
+#bubbleSeg button{--bc:var(--b-momentum)}
+#models button,#assets button,#bubbleSeg button{background:var(--panel-2);border:1px solid var(--line);border-left:3px solid var(--line);border-radius:3px 6px 6px 3px;padding:6px 11px;color:var(--muted);transition:border-color .15s,color .15s,box-shadow .15s}
+#models button:hover,#assets button:hover,#bubbleSeg button:hover{color:var(--fg);border-left-color:var(--muted)}
+#models button[aria-pressed="true"],#assets button[aria-pressed="true"],#bubbleSeg button[aria-pressed="true"]{background:var(--panel-2);color:var(--fg);border-left-color:var(--bc);box-shadow:-3px 0 10px -3px var(--bc)}
+.card{border-left:3px solid var(--card-edge)}.card .k{color:var(--card-k);font-weight:600}
+:root{--card-edge:#d9dde0;--card-k:#b4bcc2}@media (prefers-color-scheme: light){ :root:not([data-theme="dark"]){--card-edge:#7d868e;--card-k:#5f6870}}
+
+#assetMain .legend{top:52px}
+
+/* website fonts */
+.brand{font-family:var(--display);font-weight:800;font-size:22px;letter-spacing:.03em;text-transform:uppercase;align-items:center}
+.brand small{font-family:var(--mono);font-weight:500;font-size:10.5px;letter-spacing:.12em}
+.seg button,#models button,#assets button,#bubbleSeg button{font-family:var(--sans);font-size:13px;font-weight:500}
+aside h2,.card .k{font-family:var(--mono);font-size:10.5px;letter-spacing:.12em}
+/* lit dots: the bot's own colour with a slight glow */
+.dot.open{background:var(--bc,var(--c-up));box-shadow:0 0 5px color-mix(in srgb,var(--bc,var(--c-up)) 60%,transparent)}
+/* colour-blind friendly colours (Settings → App): blue / orange instead of green / red, Okabe–Ito bot colours */
+:root[data-cvd="1"]{--up:#4ea8ff;--down:#ff9f1a;--c-up:#2f8cff;--c-dn:#ff8c1a;--r-up:#9fd3ff;--r-dn:#ffd27a;
+  --b-desk:#e9e4d8;--b-stocks:#56b4e9;--b-crypto:#cc79a7;--b-trend:#f0e442;--b-momentum:#e69f00;--b-combo:#e9e4d8}
+@media (prefers-color-scheme: light){ :root[data-cvd="1"]:not([data-theme="dark"]){--up:#1f6fd1;--down:#c96a00;--c-up:#0057d9;--c-dn:#d96500;--r-up:#6aa9e8;--r-dn:#e0b04a;
+  --b-desk:#4a4f57;--b-stocks:#0072b2;--b-crypto:#a8467f;--b-trend:#00795a;--b-momentum:#b35f00;--b-combo:#4a4f57}}
+
+/* tabs, bot controls and the account-value row keep the teal-tinted shades */
+:root{--tint-1:#142128;--tint-2:#1a2830;--tint-line:#283741}
+@media (prefers-color-scheme: light){ :root:not([data-theme="dark"]){--tint-1:#ffffff;--tint-2:#edf0f4;--tint-line:#d8dee6;--chart-bg:#ffffff}}
+#models button,#assets button,#bubbleSeg button{background:var(--tint-2);border-color:var(--tint-line)}
+.card{background:var(--chart-bg);border-color:var(--tint-line)}
+/* the charts keep the darker original shade; the rest of the desk uses the website's colour */
+.eqwrap{background:var(--chart-bg)}#assetMain{background:var(--chart-bg)}
+</style></head>
+<body>
+<header class="bar">
+  <div class="brand"><span><b>Trading</b> Desk</span><small>PVSRA bots · simple view</small></div>
+  <div class="seg" id="models" role="tablist" aria-label="Model"></div>
+  <div class="seg" id="bubbleSeg" role="tablist" aria-label="Bubble Watch"></div>
+  <div class="seg" id="assets" role="tablist" aria-label="Assets traded"></div>
+  <span class="sp"></span>
+  <div id="appCtl"></div>
+  <span class="chip" id="upd">loading…</span>
+</header>
+<div class="body">
+  <section class="main" id="modelMain">
+    <div class="cards" id="cards"></div>
+    <div class="eqwrap"><div class="ttl" id="eqTtl">Account value</div><div id="eq"></div></div>
+  </section>
+  <section class="main" id="assetMain" hidden>
+    <div id="wrap"><div id="chart"></div><canvas id="back"></canvas><div id="tfs" role="group" aria-label="Chart timeframe"></div><div id="tfnote" hidden></div><button type="button" id="centre" title="Centre on the latest candles (shortcut: C)">⌖ Live</button></div>
+    <div class="legend" id="legend"></div>
+    <div class="status" id="status"></div>
+  </section>
+  <section class="main" id="bubbleMain" hidden><iframe id="bubbleFrame" title="S&amp;P 500 Bubble Watch" style="border:0;width:100%;height:100%;display:block;background:var(--bg)"></iframe></section>
+  <aside id="side"></aside>
+</div>
+<script>
+(function(){
+try{if(localStorage.getItem('pvsra.cvd')==='1')document.documentElement.dataset.cvd='1'}catch(e){}
+const $=id=>document.getElementById(id), LW=window.LightweightCharts;
+const cssv=k=>getComputedStyle(document.documentElement).getPropertyValue(k).trim();const C={};
+const readColors=()=>['--fg','--muted','--grid','--line','--up','--down','--c-up','--c-dn','--r-up','--r-dn','--n-up','--n-dn','--accent','--accent-ink','--bg','--panel'].forEach(k=>C[k]=cssv(k));readColors();
+const alpha=(hex,a)=>{hex=hex.replace('#','');if(hex.length===3)hex=hex.split('').map(c=>c+c).join('');const n=parseInt(hex,16);return`rgba(${n>>16&255},${n>>8&255},${n&255},${a})`};
+const CONS_LV=[[60,'Strong buy'],[30,'Buy'],[10,'Lean long'],[-10,'Neutral'],[-30,'Lean short'],[-60,'Sell'],[-101,'Strong sell']];
+const consLabel=s=>{for(const[t,l]of CONS_LV)if(s>=t)return l;return'Strong sell'};
+const consTok=v=>v>=60?'--c-up':v>=30?'--r-up':v>=10?'--n-up':v>-10?'--muted':v>-30?'--n-dn':v>-60?'--r-dn':'--c-dn';
+const consCol=v=>C[consTok(v)];
+const money=v=>v==null||!isFinite(v)?'–':(v<0?'−$':'$')+Math.abs(v).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+const smoney=v=>(v>=0?'+':'')+money(v).replace('−','−');
+const pct=v=>(v>=0?'+':'−')+Math.abs(v*100).toFixed(1)+'%';
+const px=v=>v==null?'–':(+v).toLocaleString('en-US',{maximumSignificantDigits:6});
+const when=t=>t?new Date(t*1000).toISOString().replace('T',' ').slice(0,16)+' UTC':'–';
+const day=t=>new Date(t*1000).toISOString().slice(0,10);
+const tfL=s=>({900:'15m',3600:'1H',14400:'4H',28800:'8H',86400:'1D',604800:'1W',2592000:'1M'})[s]||s+'s';
+const TFB=[['15m','15m'],['1h','1H'],['4h','4H'],['8h','8H'],['1d','1D'],['1w','1W'],['1M','1M']];
+let tfSel=null;try{tfSel=localStorage.getItem('pvsra.tf')||null}catch(e){}
+const NAMES={stocks:'Stock model',crypto:'Crypto model',trend:'Trend model',momentum:'Momentum model',combo:'Combined crypto',desk:'Desk portfolio'};
+
+let S=null,view={kind:'model',market:'stocks'},chartData=null;
+try{const v=JSON.parse(localStorage.getItem('pvsraBotView')||'null');if(v&&v.kind)view=v}catch(e){}
+const saveView=()=>{try{localStorage.setItem('pvsraBotView',JSON.stringify(view))}catch(e){}};
+
+/* ---------- data ---------- */
+async function getJSON(u){const r=await fetch(u,{cache:'no-store'});if(!r.ok)throw new Error(r.status);return r.json()}
+async function refresh(){
+  try{S=await getJSON('/api/summary');$('upd').textContent='updated '+new Date().toLocaleTimeString()}catch(e){$('upd').textContent='dashboard server not reachable';return}
+  try{BUB=await getJSON('/api/bubble/summary')}catch(e){BUB=null}
+  renderTabs();
+  if(view.kind==='bubble')return showBubble();
+  const isM=view.kind==='model';$('modelMain').hidden=!isM;$('assetMain').hidden=isM;$('bubbleMain').hidden=true;$('side').hidden=false;
+  if(isM)renderModel();else await loadAsset(!!chartData&&chartData.sym===view.sym&&chartData.market===view.market);
+}
+let BUB=null;const BTIER=['Normal','Elevated','Bubble zone'],BSTAGE=['No crash under way','Falling: wait','First third bought','Two thirds bought','Trend turned: fully bought'];
+function showBubble(){$('modelMain').hidden=true;$('assetMain').hidden=true;$('status').hidden=true;$('side').hidden=true;$('bubbleMain').hidden=false;const f=$('bubbleFrame');if(!f.src)f.src='/bubble.html'}
+// stock bot page: the Bubble Watch reading, for information (it does not change the bot's trades)
+document.addEventListener('dash:rendered',e=>{if(e.detail.kind!=='model'||e.detail.market!=='stocks'||!BUB)return;const side=$('side');if(!side||$('bubBanner'))return;const col=BUB.tier===2?'var(--c-dn)':BUB.tier===1?'var(--accent)':'var(--muted)';
+  side.insertAdjacentHTML('afterbegin',`<div id="bubBanner" class="sigcard" style="cursor:pointer;border-left:3px solid ${col}"><div class="top"><span class="side" style="color:${col}">BUBBLE WATCH · ${BTIER[BUB.tier].toUpperCase()} ${Math.floor(BUB.froth)}</span><span class="chip">open ›</span></div><div class="kv"><span>Momentum killers</span><span>${BUB.kill_n} of ${BUB.kill_avail}</span><span>Crash-buy score</span><span>${BUB.crash} · ${BSTAGE[BUB.stage]}</span></div><p class="rule">S&amp;P 500 reading for ${BUB.month}. For information: the stock bot's trades do not change with it.</p></div>`);
+  $('bubBanner').onclick=()=>{view={kind:'bubble'};saveView();renderTabs();showBubble()}});
+/* ---------- tabs ---------- */
+function assetsOf(m){const b=S[m];if(!b||!b.state)return[];const st=b.state,last=st.lastBar||0,out=new Map();
+  for(const s of Object.keys(st.positions||{}))out.set(s,{sym:s,market:m,open:true});
+  for(const t of [...(st.trades||[])].reverse())if(!out.has(t.sym)&&last-t.t1<60*86400)out.set(t.sym,{sym:t.sym,market:m,open:false});
+  if(m==='trend')for(const s of Object.keys(st.targets||{}))if(!out.has(s))out.set(s,{sym:s,market:m,open:false});return[...out.values()]}
+function renderTabs(){
+  const mk=(on,html,fn)=>{const b=document.createElement('button');b.setAttribute('role','tab');b.setAttribute('aria-pressed',String(on));b.innerHTML=html;b.onclick=fn;return b};
+  $('models').replaceChildren(...['desk','stocks','crypto','trend','momentum','combo'].filter(m=>S[m]).map(m=>{const b=mk(view.kind==='model'&&view.market===m,`${NAMES[m]}`,()=>{view={kind:'model',market:m};saveView();renderTabs();show()});b.dataset.m=m;return b}));
+  $('bubbleSeg').replaceChildren(mk(view.kind==='bubble',`<span class="dot" style="background:${BUB&&BUB.tier===2?'var(--c-dn)':BUB&&BUB.tier===1?'var(--accent)':'var(--muted)'}"></span>Bubble Watch${BUB?` <span class="tag">${Math.floor(BUB.froth)}</span>`:''}`,()=>{view={kind:'bubble'};saveView();renderTabs();showBubble()}));
+  const list=[...assetsOf('stocks'),...assetsOf('crypto'),...(S.trend?assetsOf('trend'):[])];
+  $('assets').hidden=!list.length;
+  $('assets').replaceChildren(...list.map(a=>Object.assign(mk(view.kind==='asset'&&view.sym===a.sym&&view.market===a.market,`<span class="dot ${a.open?'open':''}" title="${a.open?'open position':'recently traded'}"></span>${a.sym.replace(/USDT$/,'')}<span class="tag">${a.market==='stocks'?'STK':a.market==='crypto'?'CRY':'TRD'}</span>`,()=>{view={kind:'asset',market:a.market,sym:a.sym};saveView();renderTabs();show()}),{className:'m-'+a.market})));
+}
+function show(){if(view.kind==='bubble')return showBubble();const isM=view.kind==='model';$('modelMain').hidden=!isM;$('assetMain').hidden=isM;$('bubbleMain').hidden=true;$('side').hidden=false;if(isM)renderModel();else loadAsset(false)}
+
+/* ---------- model tab ---------- */
+let eqChart=null,eqSeries=null,eqBase=null,eqFit=null;
+function renderModel(){
+  if(!S[view.market]){view={kind:'model',market:['crypto','stocks','trend'].find(m=>S[m])||'stocks'};saveView();renderTabs()}
+  const b=S[view.market],side=$('side');
+  if(!b.configured||!b.running){
+    $('cards').innerHTML='';$('eqTtl').textContent='';if(eqChart){eqChart.remove();eqChart=null}
+    if(view.market==='desk'){$('eq').innerHTML=`<div class="notice">The desk portfolio adds the bots together and re-splits the money between them on the first day of each quarter. Start the bots; this page fills in once each has finished a cycle.</div>`;side.innerHTML=deskSide(b);return}
+    if(view.market==='combo'){$('eq').innerHTML=`<div class="notice">The combined crypto account adds the crypto bot and the trend bot together: a third of the money in the crypto bot, two thirds in the trend bot, rebalanced on the first day of each month. Start both bots; this page fills in after each has finished a cycle.</div>`;side.innerHTML=comboSide(b);return}
+    $('eq').innerHTML=`<div class="notice">${!b.configured?`The ${NAMES[view.market].toLowerCase()} is not connected to this dashboard. Start the dashboard with <code>--${view.market} config.${view.market}.json</code>.`:(window.botApp?`The ${NAMES[view.market].toLowerCase()} has not finished a cycle yet. Press <b>Start</b> at the top right; this page fills in a minute or two after it starts (it checks the latest closed bar straight away, and in Paper mode replays recent history as a head start).`:`The ${NAMES[view.market].toLowerCase()} has not run yet. Start it with <code>npm start</code> using your ${view.market} config; this page fills in after its first cycle.`)}</div>`;
+    side.innerHTML='<h2>Open positions</h2><div class="empty">None yet.</div>';document.dispatchEvent(new CustomEvent('dash:rendered',{detail:{kind:'model',market:view.market}}));return}
+  const st=b.state,cfg=b.cfg,start=cfg.startCash||10000,eq=st.lastEquity,pos=Object.entries(st.positions||{}),SM_=()=>view.market==='stocks'?((st.meta&&st.meta.stockModel)||cfg.stockModel||'v3'):'v3';
+  const total=eq/start-1,dStart=Math.floor((st.lastBar||0)/86400)*86400,prevPt=[...(b.equity||[])].reverse().find(x=>x[0]<dStart),dayChg=prevPt?eq/prevPt[1]-1:0,ddNow=st.peak?1-eq/st.peak:0;
+  const modeCls=cfg.mode==='live'?'live':'paper';
+  $('cards').innerHTML=`
+   <div class="card"><div class="k">Account value</div><div class="v">${money(eq)}</div><div class="s"><span class="chip ${modeCls}">${cfg.demo?'DEMO DATA':cfg.mode.toUpperCase()}</span> started ${money(start)}</div></div>
+   <div class="card"><div class="k">Since start</div><div class="v ${total>=0?'pos':'neg'}">${pct(total)}</div><div class="s">${smoney(eq-start)}</div></div>
+   <div class="card"><div class="k">Since previous day</div><div class="v ${dayChg>=0?'pos':'neg'}">${pct(dayChg)}</div><div class="s">${ddNow>0.0005?'down '+(ddNow*100).toFixed(1)+'% from peak':'at its peak'}</div></div>
+   ${view.market==='desk'?(()=>{const p=st.parts||{},BS=b.bots||['crypto','trend','stocks'],tot=Object.values(p).reduce((a,v)=>a+(v||0),0)||1;return`<div class="card"><div class="k">Split now</div><div class="v">${BS.map(m=>Math.round(100*(p[m]||0)/tot)).join(' / ')}</div><div class="s">${BS.join(' / ')} · worst drop so far ${(100*(st.worst||0)).toFixed(1)}%</div></div>`})():view.market==='combo'?(()=>{const p=st.parts||{},tot=(p.crypto||0)+(p.trend||0)||1;return`<div class="card"><div class="k">Split now</div><div class="v">${Math.round(100*(p.crypto||0)/tot)} / ${Math.round(100*(p.trend||0)/tot)}</div><div class="s">crypto bot / trend bot · target 33 / 67</div></div>`})():view.market==='momentum'?(()=>{const L=pos.filter(([,p])=>p.side>0).length,Sh=pos.filter(([,p])=>p.side<0).length;return`<div class="card"><div class="k">Positions</div><div class="v">${L} long · ${Sh} short</div><div class="s">next re-balance ${st.meta&&st.meta.nextRebalance?day(st.meta.nextRebalance):'–'} · paper only</div></div>`})():view.market==='trend'?(()=>{const inv=pos.reduce((a,[,p])=>a+(p.weight||0),0);return`<div class="card"><div class="k">Invested</div><div class="v">${Math.round(inv*100)}%</div><div class="s">${pos.length?'in '+pos.map(([s])=>s.replace(/USDT$/,'')).join(', '):'all in cash'} · day ${day(st.lastBar)}</div></div>`})():`<div class="card"><div class="k">${st.halted?'Halted':'Positions'}</div><div class="v ${st.halted?'neg':''}">${st.halted?'STOP':pos.length+' / '+(SM_()==='momentum'?5:SM_()==='half'?cfg.slots+5:cfg.slots)}</div><div class="s">${st.halted?st.haltReason:SM_()!=='v3'&&st.meta&&st.meta.nextPick?'next monthly pick '+day(st.meta.nextPick):'last bar '+when(st.lastBar)}</div></div>`}`;
+  $('eqTtl').textContent=`Account value · ${NAMES[view.market]} · ${tfL(cfg.tf)} bars`;
+  if(!eqChart){$('eq').innerHTML='';eqFit=null;eqChart=LW.createChart($('eq'),chartOpts($('eq'),cfg.tf<86400));eqSeries=eqChart.addAreaSeries({lineColor:C['--accent'],topColor:alpha(C['--accent'],.25),bottomColor:alpha(C['--accent'],0),lineWidth:2,priceLineVisible:false});new ResizeObserver(()=>eqChart&&eqChart.applyOptions({width:$('eq').clientWidth,height:$('eq').clientHeight})).observe($('eq'))}
+  const pts=(b.equity||[]).map(([t,v])=>({time:t,value:v}));eqSeries.setData(pts);
+  if(eqBase)eqSeries.removePriceLine(eqBase);eqBase=eqSeries.createPriceLine({price:start,color:C['--muted'],lineStyle:2,lineWidth:1,axisLabelVisible:true,title:'START'});
+  if(eqFit!==view.market){eqChart.timeScale().fitContent();eqFit=view.market}   // fit once per tab, so a refresh never undoes the user's pan or zoom
+  // side: open positions, recent trades, rules
+  if(view.market==='desk'){side.innerHTML=deskSide(b);side.querySelectorAll('[data-go]').forEach(r=>r.onclick=()=>{view={kind:'model',market:r.dataset.go};saveView();renderTabs();show()});document.dispatchEvent(new CustomEvent('dash:rendered',{detail:{kind:'model',market:'desk'}}));return}
+  if(view.market==='combo'){side.innerHTML=comboSide(b);side.querySelectorAll('[data-go]').forEach(r=>r.onclick=()=>{view={kind:'model',market:r.dataset.go};saveView();renderTabs();show()});document.dispatchEvent(new CustomEvent('dash:rendered',{detail:{kind:'model',market:'combo'}}));return}
+  if(view.market==='momentum'){side.innerHTML=momSide(st,cfg,pos);document.dispatchEvent(new CustomEvent('dash:rendered',{detail:{kind:'model',market:view.market}}));return}
+  if(view.market==='trend'){side.innerHTML=trendSide(st,cfg,pos);document.dispatchEvent(new CustomEvent('dash:rendered',{detail:{kind:'model',market:view.market}}));side.querySelectorAll('.row[data-sym]').forEach(r=>r.onclick=()=>{view={kind:'asset',market:view.market,sym:r.dataset.sym};saveView();renderTabs();show()});return}
+  let h='';const sm=SM_(),mt=st.meta||{};
+  if(sm!=='v3'){h+=`<h2>How it works</h2><p class="rule" style="margin:0 0 6px">${sm==='momentum'?'<b>Momentum model</b> (paper only for now):':'<b>Half and half</b> (paper only for now): half the account in the bot\'s own model ('+cfg.slots+' stocks), half in the momentum model, put back to 50/50 at the start of each month. Momentum:'} on the first trading day of each month it holds the 5 S&amp;P 500 stocks that rose most over the past year (skipping the last month), only stocks above their 200-day average and only while the S&amp;P 500 is above its own; otherwise that money waits in cash.</p>`;
+    if(sm==='half'&&mt.halves)h+=`<div class="row"><span>Own model half</span><span class="r">${money(mt.halves.v3)}</span></div><div class="row"><span>Momentum half</span><span class="r">${money(mt.halves.momentum)}</span></div>`;
+    h+=`<h2>This month's momentum picks</h2>`+(mt.marketUp===false?'<div class="empty">The S&amp;P 500 is below its 200-day average: the momentum money is in cash.</div>':(mt.picks||[]).length?(mt.picks||[]).map(p=>`<div class="row"><span><b>${p.sym}</b></span><span class="r pos">+${(100*p.score).toFixed(0)}% over the year</span></div>`).join(''):'<div class="empty">No pick yet.</div>')+`<p class="rule">Picked ${mt.pickedAt?day(mt.pickedAt):'–'} · next pick ${mt.nextPick?day(mt.nextPick):'–'}</p>`}
+  h+='<h2>Open positions</h2>';
+  if(!pos.length)h+=sm==='momentum'?'<div class="empty">No open positions: all cash until the next monthly pick.</div>':'<div class="empty">No open positions. The bot is waiting for a consensus of +'+30+' or more.</div>';
+  for(const [sym,p] of pos){if(p.model==='momentum'){const now=p.lastPrice??p.entry,pl=p.pnl??p.qty*(now-p.entry);
+      h+=`<div class="row" data-sym="${sym}"><span><b>${sym}</b> <span style="color:var(--c-up)">IN LONG</span> <span class="m">momentum</span>${p.hist?' <span class="hist">from history</span>':''}</span><span class="r ${pl>=0?'pos':'neg'}">${smoney(pl)}</span>
+      <span class="m">${money(p.notional||0)} · entry ${px(p.entry)} · now ${px(now)} · no stop: re-picked monthly</span><span class="r m">${p.score!=null?'+'+(100*p.score).toFixed(0)+'% yr':''}</span></div>`;continue}const now=p.lastPrice??p.entry,pl=p.qty*(now-p.entry)*p.side,R=(now-p.entry)*p.side/(p.risk||Math.abs(p.entry-p.stop));
+    h+=`<div class="row" data-sym="${sym}"><span><b>${sym.replace(/USDT$/,'')}</b>${p.model==='v3'?' <span class="m">own model</span>':''}${p.also?' <span class="m">+ momentum '+money(p.also.notional||0)+'</span>':''} ${p.side<0?'<span style="color:var(--c-dn)">IN SHORT</span>'+(p.guard?' <span class="m">burst guard</span>':''):'<span style="color:var(--c-up)">IN LONG</span>'}${p.hist?' <span class="hist">from history</span>':''}</span><span class="r ${pl>=0?'pos':'neg'}">${smoney(pl)}</span>
+      <span class="m">entry ${px(p.entry)} · now ${px(now)} · stop ${px(p.stop)}${p.stopWhy==='profit stop'?' (profit stop)':''}</span><span class="r m">${R>=0?'+':''}${R.toFixed(2)}R</span></div>`}
+  const hs=st.meta&&st.meta.headStart;if(hs&&hs.from)h+=`<p class="rule hsnote">Head start: ${hs.since?'everything since 1 January 2020 ('+day(hs.from)+' → '+day(hs.to)+') was':'the last '+hs.days+' days ('+day(hs.from)+' → '+day(hs.to)+') were'} replayed on paper with real market data, so trades marked <span class="hist">history</span> were simulated when the bot started. Everything after that is live paper trading.</p>`;
+  h+=guardBlock(st.meta&&st.meta.guard,view.market);
+  const tr=[...(st.trades||[])].reverse().slice(0,15);
+  h+='<h2>Recent trades</h2>'+(tr.length?tr.map(t=>`<div class="tl"><span><span class="m">${day(t.t1)}</span> <b>${t.sym.replace(/USDT$/,'')}</b>${t.hist?' <span class="hist">history</span>':''}</span><span class="${t.pnl>=0?'pos':'neg'}">${smoney(t.pnl)}</span><span class="w">${px(t.entry)} → ${px(t.exit)} · ${t.why==='exit'?'consensus exit':t.why}</span></div>`).join(''):'<div class="empty">No closed trades yet.</div>');
+  const wins=(st.trades||[]).filter(t=>t.pnl>0).length,n=(st.trades||[]).length;
+  if(sm!=='momentum')h+=`<h2>${sm==='half'?'Rules of the own-model half':'Rules'}</h2><p class="rule"><b>${cfg.model}${view.market==='crypto'&&cfg.model==='v3'&&((st&&st.meta&&st.meta.profitStop)??cfg.profitStop==='on')?'a':''}</b> on ${tfL(cfg.tf)} candles, buy only. Holds up to <b>${cfg.slots}</b> ${view.market==='stocks'?'stocks':'coins'}, ${cfg.risk?'risking '+(cfg.risk*100)+'% per trade':'an equal share of the account each'}. Picks ${cfg.rank==='liquid'?'the most-traded companies first':'coins lagging Bitcoin with quiet volume first'}${cfg.regime?', and only buys while the benchmark is above its 200-day average':''}. Enters at consensus +30${view.market==='crypto'&&((st&&st.meta&&st.meta.trendRule)??cfg.trendRule==='on')?' on coins closing above their 50-day average':''}, exits below +10 or at the stop (2.5 ATR)${view.market==='crypto'&&((st&&st.meta&&st.meta.profitStop)??cfg.profitStop==='on')?'. Profit stop: once a trade is 2R up and fewer than 35% of the scanned coins are above their 50-day average, the stop follows 3 ATR under the best close':''}.${n?` So far ${n} trades, ${Math.round(100*wins/n)}% winners.`:''}</p>`;
+  side.innerHTML=h;document.dispatchEvent(new CustomEvent('dash:rendered',{detail:{kind:'model',market:view.market}}));side.querySelectorAll('.row[data-sym]').forEach(r=>r.onclick=()=>{view={kind:'asset',market:view.market,sym:r.dataset.sym};saveView();renderTabs();show()});
+}
+// Burst guard panel (src/guard.js). GUARD_TESTS: the bot's own backtest with the guard off and on, from 2020.
+const GUARD_TESTS={"stocks": "Tested 2020 to Nov 2026 from $10,000: guard off $45,959 (worst drop 34%), on $32,476 (32%). Built for long busts like 2008. It costs money in quick dips.", "crypto": "Tested 2020 to Nov 2026 from $10,000 with the 1.9.0 rules: guard off $149,671 (worst drop 47%), on $63,835 (43%), on with a third shorted $47,290. The bot's own 200-day filter already covers most of what the guard does.", "trend": "Tested on Bitcoin 2020 to Nov 2026 from $10,000: guard off $93,750 (worst drop 46%), on $51,267 (48%)."};
+function guardBlock(g,market){if(!g)return'';const nm=g.kind==='sp'?'S&P 500 (SPY)':market==='stocks'?'SPY':'Bitcoin',T=GUARD_TESTS[market];
+  const state=g.out?`<b style="color:var(--c-dn)">OUT</b> since ${g.since}`:`<b style="color:var(--c-up)">IN</b>${g.since?' since '+g.since:''}`;
+  const doing=g.on?(g.out?(market==='trend'?'The bot holds cash.':'No new buys; long positions were sold.')+(g.short?' The guard short on Bitcoin is on (paper accounts only).':''):'Trading normally.'):'Watching only. Switch it on in Settings to let it change trades.';
+  let h=`<h2>Burst guard · ${g.on?'on':'off'}</h2><p class="rule" style="margin:0 0 6px">${nm} ${state}. ${doing}</p>`;
+  const lvl=g.out?`back in above ${px(g.backLevel)}${g.fastLevel?`, or above the 50-day average (${px(g.s50)}) once it has closed below ${px(g.fastLevel)}`:''}`:`out below ${px(g.exitLevel)}${g.kind==='sp'?(g.warned?' · warned: Bubble Watch 65+ or the curve inverted':' · not warned, so it would not exit'):` · one volatility unit (${(g.volUnit*100).toFixed(1)}%) under the 200-day average ${px(g.s200)}`}`;
+  h+=`<div class="tl"><span>Close ${px(g.close)}</span><span class="m">${g.date}</span><span class="w">${lvl}</span></div>`;
+  const ev=(g.events||[]).slice(-4).reverse();if(ev.length)h+=ev.map(e=>`<div class="tl"><span class="m">${e.date}</span><span style="color:${e.type==='out'?'var(--c-dn)':'var(--c-up)'}">${e.type==='out'?'OUT':'IN'}</span><span class="w">${px(e.px)} · ${e.why}</span></div>`).join('');
+  if(T)h+=`<p class="rule">${T}</p>`;return h}
+function deskSide(b){const st=b.state||{},p=st.parts||{},T=b.tested||{},H=[...(b.history||[])].reverse(),R=b.rule||{},nx=b.nextShares||{},tot=Object.values(p).reduce((a,v)=>a+(v||0),0);
+  const nm={crypto:'Crypto bot',trend:'Trend bot',stocks:'Stock bot',momentum:'Momentum bot'},sh=v=>v==null?'–':Math.round(100*v)+'%',BS=b.bots||['crypto','trend','stocks'];
+  let h=`<h2>How it works</h2><p class="rule" style="margin:0 0 6px">One pot shared by the ${BS.length===4?"four":"three"} bots. On the first day of each quarter the desk re-splits it by how much each bot's account value has swung day to day over the last ${R.lookback||120} days: calmer bots get more. ${BS.length===4?'Starting tilt: half equal, half by each bot\'s record over the last year (return per unit of swing).':`Starting tilt ${sh(R.tilt&&R.tilt.crypto)} crypto, ${sh(R.tilt&&R.tilt.trend)} trend, ${sh(R.tilt&&R.tilt.stocks)} stocks.`} No bot above ${sh(R.cap)}.${b.momentumWanted&&BS.length===3?' The paper momentum bot joins the desk only while the other three bots are on paper.':''} Paper bots move the money at their next cycle; for real money the desk tells you what to move.</p>`;
+  h+='<h2>Now</h2>'+BS.map(m=>`<div class="row" data-go="${m}"><span><b>${nm[m]}</b></span><span class="r">${p[m]==null?'–':money(p[m])}</span><span class="m">${b.modes?String(b.modes[m]).toUpperCase():''}</span><span class="r m">${p[m]!=null&&tot?Math.round(100*p[m]/tot)+'%':''} · next ${sh(nx[m])}</span></div>`).join('');
+  h+='<h2>Quarterly re-splits</h2>'+(H.length?H.slice(0,8).map(x=>`<div class="tl"><span class="m">${x.quarter}</span><span>${money(x.total)}</span><span class="w">${Object.keys(x.shares).map(m=>`${nm[m].split(' ')[0]} ${sh(x.shares[m])}`).join(' · ')}${x.replay?' · replayed (since-2020 history)':x.auto?(b.pending===x.id?(x.since2020?' · today\'s split after the since-2020 replay, moving at each bot\'s next cycle':' · moving at each bot\'s next cycle'):' · moved'):' · move by hand: '+Object.keys(x.shares).map(m=>`${nm[m].split(' ')[0]} ${x.move[m]>=0?'+':'−'}${money(Math.abs(x.move[m]))}`).join(', ')}</span></div>`).join(''):'<div class="empty">The first split happens once all three bots have run, then on the first day of each quarter.</div>');
+  if(b.seed)h+=`<h2>Since 2020</h2><p class="rule">The account value up to ${day(b.seed.to)} is the desk worked out from the bots' own since-2020 replays, re-split every quarter by the rule above as in the tests: $${Math.round(b.cfg.startCash||10000).toLocaleString('en-US')} → ${money(b.seed.total)}, worst drop ${(100*b.seed.dd).toFixed(1)}%. Each bot was then given its share of that. Everything after is live paper trading.</p>`;
+  if(T.desk4&&BS.length===4)h+=`<h2>Tested</h2><p class="rule">From ${T.from} to Nov 2026, $10,000, typical of 20 runs: four-bot desk <b>${money(T.desk4.typical)}</b> (worst drop ${T.desk4.dd}%, worst run ${T.desk4.worstRun}%), only 2022 a losing year (${T.desk4.years[2022]}%) · three-bot desk ${money(T.desk.typical)} (${T.desk.dd}%) · best fixed split picked with hindsight ${money(T.hindsight.typical)}. Five share rules were tried and this was the best; close variants made $122,000–$125,000.</p>`;
+  else if(T.desk)h+=`<h2>Tested</h2><p class="rule">From ${T.from} to Nov 2026, $10,000, typical of 20 runs: desk portfolio <b>${money(T.desk.typical)}</b> (worst drop ${T.desk.dd}%, worst run ${T.desk.worstRun}%) · fixed 35/35/30 split ${money(T.fixed.typical)} (${T.fixed.dd}%) · crypto bot alone ${money(T.cryptoAlone.typical)} (${T.cryptoAlone.dd}%). Tested with the crypto bot's Bitcoin 50-day rule on and the stock bot holding 4 stocks. Chosen on these years, so expect less: nearby settings made $103,000–$116,000.</p>`;
+  return h}
+function comboSide(b){const st=b.state||{},p=st.parts||{},T=b.tested||{},H=[...(b.history||[])].reverse();
+  let h='<h2>How it works</h2><p class="rule" style="margin:0 0 6px">One pot of money run by two bots: <b>a third</b> in the crypto bot (v3, 3 coins on 4-hour candles) and <b>two thirds</b> in the trend bot (Trend Engine, daily). On the first day of each month the desk moves money between them to put the split back to a third and two thirds. Each bot applies the move at its next cycle.</p>';
+  h+='<h2>Now</h2>'+[['Crypto bot',p.crypto,'crypto'],['Trend bot',p.trend,'trend']].map(([n,v,m])=>`<div class="row" data-go="${m}"><span><b>${n}</b></span><span class="r">${v==null?'–':money(v)}</span><span class="m">${b.modes?String(b.modes[m]).toUpperCase():''}</span><span class="r m">${v!=null&&st.lastEquity?Math.round(100*v/st.lastEquity)+'%':''}</span></div>`).join('');
+  h+='<h2>Monthly rebalances</h2>'+(H.length?H.slice(0,12).map(x=>`<div class="tl"><span class="m">${x.month}</span><span>${money(x.total)}</span><span class="w">${x.toCrypto>=0?'moved '+money(x.toCrypto)+' to the crypto bot':'moved '+money(-x.toCrypto)+' to the trend bot'}${b.pending===x.id?' · applied at each bot\'s next cycle':''}</span></div>`).join(''):'<div class="empty">The first rebalance happens once both bots have run, then on the first day of each month.</div>');
+  if(T.combo)h+=`<h2>Tested</h2><p class="rule">From ${T.from} to Nov 2026, $10,000: combined <b>${money(T.combo.final)}</b> (worst drop ${T.combo.dd}%) · crypto bot alone ${money(T.crypto.final)} (${T.crypto.dd}%) · trend bot alone ${money(T.trend.final)} (${T.trend.dd}%) · same split never rebalanced ${money(T.noRebalance.final)}. The two bots' daily returns are only loosely linked (0.38), so one carries the account while the other struggles. Both bots were tuned on these years, so expect less in future.</p>`;
+  return h}
+function momSide(st,cfg,pos){const nm=s=>s.replace(/USDT$/,''),T=st.tested||{},R=[...(st.rebalances||[])].reverse();
+  let h='<h2>How it works</h2><p class="rule" style="margin:0 0 6px">Paper only. Every 7 days, among the 100 most traded Binance futures, it buys the 10 that rose most over 30 days and shorts the 10 that fell most, half the account each side. Funding is paid on longs and received on shorts; 0.1% cost on every dollar traded.</p>';
+  for(const [lab,side] of [['Long',1],['Short',-1]]){const ps=pos.filter(([,p])=>p.side===side).sort((a,b)=>(b[1].pnl||0)-(a[1].pnl||0));
+    h+=`<h2>${lab} (${ps.length})</h2>`+(ps.length?ps.map(([s,p])=>`<div class="row"><span><b>${nm(s)}</b> <span style="color:${side>0?'var(--c-up)':'var(--c-dn)'}">${side>0?'LONG':'SHORT'}</span></span><span class="r ${(p.pnl||0)>=0?'pos':'neg'}">${smoney(p.pnl||0)}</span><span class="m">${money(p.notional)} · in at ${px(p.entry)} · now ${px(p.lastPrice??p.entry)}</span><span class="r m">30-day ${p.score==null?'–':(p.score>=0?'+':'')+(100*p.score).toFixed(1)+'%'}</span></div>`).join(''):'<div class="empty">None.</div>')}
+  h+='<h2>Weekly re-balances</h2>'+(R.length?R.slice(0,10).map(x=>`<div class="tl"><span class="m">${day(x.t)}${x.hist?' <span class="hist">history</span>':''}</span><span>${money(x.equity)}</span><span class="w">long ${x.longs.map(nm).join(', ')||'none'} · short ${x.shorts.map(nm).join(', ')||'none'}</span></div>`).join(''):'<div class="empty">The first re-balance is on the next weekly re-balance day.</div>');
+  if(T.final)h+=`<h2>Tested</h2><p class="rule">From ${T.from} to Nov 2026, $10,000: <b>${money(T.final)}</b>, worst drop ${T.dd}%. By year: ${Object.entries(T.years).map(([y,v])=>y+' '+(v>=0?'+':'')+v+'%').join(' · ')}. Settings were chosen on 2020–23; 2024–26 were not seen. It needs futures and can be hit by sudden squeezes on small coins, so it has never traded real money.</p>`;
+  return h}
+function trendSide(st,cfg,pos){const N=cfg.slots||1,sh=v=>Math.round((v||0)*100)+'%',nm=s=>s.replace(/USDT$/,'');
+  let h='<h2>Holding</h2>';
+  if(!pos.length)h+='<div class="empty">All in cash. The model buys again when trends turn up.</div>';
+  for(const [sym,p] of pos){const now=p.lastPrice??p.entry,un=p.qty*now-p.cost;
+    h+=`<div class="row" data-sym="${sym}"><span><b>${nm(sym)}</b> <span style="color:var(--c-up)">HOLDING ${sh(p.weight)}</span>${p.hist?' <span class="hist">from history</span>':''}</span><span class="r ${un>=0?'pos':'neg'}">${smoney(un)}</span>
+      <span class="m">${px(p.qty)} · avg cost ${px(p.entry)} · now ${px(now)}</span><span class="r m">target ${sh(p.target)}</span></div>`}
+  const T=st.targets||{},ks=Object.keys(T);
+  if(ks.length){const gk=ks.filter(s=>T[s].gated).length;h+=`<h2>Today's model reading</h2>`+(gk?`<p class="rule" style="margin:0 0 6px">Bitcoin is in a downtrend (${Math.round((st.btcScore||0)*8)}/8 votes), so the ${gk} altcoins are paused until it turns up.</p>`:'')+ks.map(s=>{const t=T[s];if(t.missing)return`<div class="tl"><span><b>${nm(s)}</b></span><span class="m">no candle today</span></div>`;const k=(t.votes||[]).filter(Boolean).length;
+    return`<div class="tl tr" data-sym="${s}"><span><b>${nm(s)}</b> <span class="m">trend ${k}/8</span></span><span>${t.gated?'<span class="m">paused</span>':N>1?sh(t.target*N)+' of its slot':sh(t.target)+' of the account'}</span><span class="w">volatility ${Math.round(t.vol*100)}% a year${t.scale<0.999?' → size '+sh(t.scale):''}</span></div>`}).join('')}
+  const hs=st.meta&&st.meta.headStart;if(hs&&hs.from)h+=`<p class="rule hsnote">Head start: ${hs.since?'everything since 1 January 2020 ('+day(hs.from)+' → '+day(hs.to)+') was':'the last '+hs.days+' days ('+day(hs.from)+' → '+day(hs.to)+') were'} replayed on paper with real market data, so orders marked <span class="hist">history</span> were simulated when the bot started. Everything after that is live paper trading.</p>`;
+  h+=guardBlock(st.meta&&st.meta.guard,'trend');
+  const od=[...(st.orders||[])].reverse().slice(0,14);
+  h+='<h2>Recent orders</h2>'+(od.length?od.map(o=>`<div class="tl"><span><span class="m">${day(o.t)}</span> <b style="color:${o.side==='BUY'?'var(--c-up)':'var(--fg)'}">${o.side}</b> ${nm(o.sym)}${o.hist?' <span class="hist">history</span>':''}</span><span>${money(o.value)}</span><span class="w">${sh(o.from)} → ${sh(o.to)} of the account @ ${px(o.price)}</span></div>`).join(''):'<div class="empty">No orders yet.</div>');
+  const tr=[...(st.trades||[])].reverse().slice(0,10),wins=(st.trades||[]).filter(t=>t.pnl>0).length,n=(st.trades||[]).length;
+  if(tr.length)h+='<h2>Closed holdings</h2>'+tr.map(t=>`<div class="tl"><span><span class="m">${day(t.t0)} → ${day(t.t1)}</span> <b>${nm(t.sym)}</b>${t.hist?' <span class="hist">history</span>':''}</span><span class="${t.pnl>=0?'pos':'neg'}">${smoney(t.pnl)}</span><span class="w">avg cost ${px(t.entry)} → sold ${px(t.exit)} · includes partial sells and fees</span></div>`).join('');
+  h+=`<h2>Rules</h2><p class="rule"><b>Trend Engine</b> on daily candles, spot only, never leveraged. ${cfg.coins==='basket10'?'Up to 10 coins, a tenth of the money each, chosen every 30 days by trading volume; altcoins only while Bitcoin itself is trending up.':'Bitcoin only.'} Each day after 00:00 UTC it asks eight questions: is the price above its 20, 50, 100 and 200-day averages, and higher than 20, 50, 100 and 200 days ago? It holds that share (6 of 8 → 75%), less when the coin swings more than 80% a year, and trades when the share moves by 10 points${N>1?' of a slot':''}.${n?` So far ${n} holdings closed, ${Math.round(100*wins/n)}% at a profit.`:''}</p>`;
+  return h}
+function chartOpts(el,intraday){return{width:el.clientWidth,height:el.clientHeight,layout:{background:{type:'solid',color:'rgba(0,0,0,0)'},textColor:C['--muted'],fontFamily:'IBM Plex Mono, ui-monospace, monospace',fontSize:11},
+  grid:{vertLines:{color:C['--grid']},horzLines:{color:C['--grid']}},rightPriceScale:{borderColor:C['--line']},timeScale:{borderColor:C['--line'],timeVisible:intraday,secondsVisible:false},crosshair:{mode:LW.CrosshairMode.Normal}}}
+
+/* ---------- asset tab: Simple view chart ---------- */
+let ch=null,candle=null,volS=null,lines=[],planRange=null,tight=false;
+// Centre on live: show the latest candles, price scale fitted to them (stop/target lines left out until the next asset change).
+function centreLive(fit){if(!ch||!chartData||!chartData.bars)return;const n=chartData.bars.length,k=chartData.kind==='trend'?220:160;tight=!!fit;
+  ch.priceScale('right').applyOptions({autoScale:true});ch.priceScale('vol').applyOptions({autoScale:true});ch.timeScale().setVisibleLogicalRange({from:Math.max(-5,n-k),to:n+12});drawRibbon()}
+let showSig=true;try{showSig=localStorage.getItem('pvsra.sig')!=='0'}catch(e){}
+const back=$('back'),ctx=back.getContext('2d');
+function ensureChart(intraday){if(ch)return;const el=$('chart');ch=LW.createChart(el,{...chartOpts(el,intraday),timeScale:{...chartOpts(el,intraday).timeScale,rightOffset:18,barSpacing:7},rightPriceScale:{borderColor:C['--line'],scaleMargins:{top:.1,bottom:.22}}});
+  candle=ch.addCandlestickSeries({autoscaleInfoProvider:orig=>{const r=orig();if(r&&r.priceRange&&planRange&&!tight){r.priceRange.minValue=Math.min(r.priceRange.minValue,planRange[0]);r.priceRange.maxValue=Math.max(r.priceRange.maxValue,planRange[1])}return r},upColor:C['--up'],downColor:C['--down'],borderUpColor:C['--up'],borderDownColor:C['--down'],wickUpColor:C['--up'],wickDownColor:C['--down']});
+  volS=ch.addHistogramSeries({priceScaleId:'vol',priceFormat:{type:'volume'},lastValueVisible:false,priceLineVisible:false});ch.priceScale('vol').applyOptions({scaleMargins:{top:.8,bottom:.075}});
+  ch.timeScale().subscribeVisibleLogicalRangeChange(drawRibbon);ch.subscribeCrosshairMove(p=>legend(p&&p.time));
+  new ResizeObserver(()=>{ch.applyOptions({width:$('chart').clientWidth,height:$('chart').clientHeight});drawRibbon()}).observe($('chart'))}
+$('centre').onclick=()=>centreLive(true);
+document.addEventListener('keydown',e=>{if((e.key==='c'||e.key==='C')&&!e.ctrlKey&&!e.metaKey&&!e.altKey&&!/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)&&!$('assetMain').hidden)centreLive(true)});
+// Timeframe buttons. The bot trades on its own timeframe (dot); other timeframes are for looking.
+function renderTfs(d){const box=$('tfs');if(!box)return;const av=new Set(d.avail||[d.tfKey]);
+  box.replaceChildren(...TFB.map(([k,l])=>{const b=document.createElement('button');b.type='button';b.textContent=l;b.setAttribute('aria-pressed',k===d.tfKey?'true':'false');
+    if(k===d.botTf)b.className='bot';b.disabled=!av.has(k);b.title=!av.has(k)?'Not available: the stock bot saves daily candles':k===d.botTf?'The timeframe the bot trades on':l+' candles';
+    b.onclick=()=>{if(k===d.tfKey)return;tfSel=k;try{localStorage.setItem('pvsra.tf',k)}catch(e){}loadAsset(false)};return b}));
+  const nt=$('tfnote');const msg=d.note||(d.tfKey!==d.botTf?`Viewing ${tfL(d.tf)}. The bot trades on ${(d.botTf||'').toUpperCase()}; the consensus and model signals here are worked out on ${tfL(d.tf)} candles${d.tf>=604800?' (momentum and the trend guard use 7, 14, 28 and 50 of these candles)':''}.`:'');
+  nt.textContent=msg;nt.hidden=!msg}
+async function loadAsset(keep){
+  const{market,sym}=view;let d;try{d=await getJSON(`/api/chart?market=${market}&sym=${encodeURIComponent(sym)}${tfSel?'&tf='+encodeURIComponent(tfSel):''}`)}catch(e){d=null}
+  if(!d||d.missing){$('legend').innerHTML=`<div class="l1"><b>${sym}</b><span class="m">${d&&d.reason?d.reason:'no candles saved yet'}</span></div>`;$('side').innerHTML='<div class="empty">No price history is saved for this asset yet. The bot saves it for coins it holds or traded in the last 60 days at each check; a <i>Since 2020</i> head start saves it for every coin it traded.</div>';$('status').hidden=true;return}
+  const tfChanged=!!chartData&&chartData.sym===d.sym&&chartData.tf!==d.tf;chartData=d;ensureChart(d.tf<86400);ch.applyOptions({timeScale:{timeVisible:d.tf<86400}});renderTfs(d);if(tfChanged)keep=false;
+  const{bars,cls}=d;candle.setData(bars.map(b=>({time:b.time,open:b.open,high:b.high,low:b.low,close:b.close})));
+  volS.setData(bars.map((b,i)=>({time:b.time,value:b.volume,color:alpha(cls[i].endsWith('+')?C['--up']:C['--down'],cls[i][0]==='n'?.45:.85)})));
+  if(d.kind==='trend'){const m=[],sh=v=>Math.round(v*100)+'%';
+    // first buy and full sell get a labelled arrow; the small rebalances in between are dots
+    for(const o of d.orders){const B=o.side==='BUY';
+      if(B&&o.from<0.005)m.push({time:o.t,position:'belowBar',color:C['--c-up'],shape:'arrowUp',text:'BUY '+sh(o.to)});
+      else if(!B&&o.to===0)m.push({time:o.t,position:'aboveBar',color:C['--c-dn'],shape:'arrowDown',text:'SELL ALL'});
+      else m.push({time:o.t,position:B?'belowBar':'aboveBar',color:B?alpha(C['--c-up'],.8):alpha(C['--fg'],.6),shape:'circle',size:0.4,text:''})}
+    m.sort((a,b)=>a.time-b.time);candle.setMarkers(m.filter(x=>x.time>=bars[0].time));lines.forEach(l=>candle.removePriceLine(l));lines=[];planRange=null;
+    if(d.position)lines.push(candle.createPriceLine({price:d.position.entry,color:C['--fg'],lineWidth:1,lineStyle:2,axisLabelVisible:true,title:'AVG COST'}));
+    if(!keep)centreLive(false);
+    legend(null);status();renderAssetSide();drawRibbon();return}
+  // entries and exits
+  // the bot's own trades, in colour, with % gained
+  const m=[],taken=new Set(),gp=t=>((t.exit/t.entry-1)*(t.side||1)*100),pc=x=>(x>=0?'+':'−')+Math.abs(x).toFixed(1)+'%';
+  for(const t of d.trades){if(!taken.has('b'+t.t0))m.push({time:t.t0,position:t.side<0?'aboveBar':'belowBar',color:t.side<0?C['--c-dn']:C['--c-up'],shape:t.side<0?'arrowDown':'arrowUp',text:t.side<0?'SHORT':'BUY'});m.push({time:t.t1,position:t.side<0?'belowBar':'aboveBar',color:t.pnl>=0?C['--c-up']:C['--c-dn'],shape:t.side<0?'arrowUp':'arrowDown',text:(/stop/.test(t.why)?'STOP ':/take-profit/.test(t.why)?'TP ':t.side<0?'COVER ':'SELL ')+pc(gp(t))+' · '+smoney(t.pnl).replace('.00','')});taken.add('b'+t.t0);taken.add('s'+t.t1)}
+  if(d.position){m.push({time:d.position.t0,position:'belowBar',color:C['--c-up'],shape:'arrowUp',text:'BUY'});taken.add('b'+d.position.t0)}
+  // the model's own buy and sell signals along the whole chart, in grey, with % gained per signal
+  const botSpans=d.trades.map(t=>[t.t0,t.t1]).concat(d.position?[[d.position.t0,Infinity]]:[]);
+  if(showSig)for(const t of d.signals||[]){const L=t.side>0;
+    if(botSpans.some(([a,b])=>t.t0<=b&&t.t1>=a))continue;   // the bot took this move: its coloured markers show it
+    if(!taken.has('b'+t.t0))m.push({time:t.t0,position:L?'belowBar':'aboveBar',color:C['--muted'],shape:L?'arrowUp':'arrowDown',text:L?'BUY':'SELL'});
+    if(t.why==='open'){if(!d.position)m.push({time:t.t1,position:L?'aboveBar':'belowBar',color:C['--muted'],shape:'circle',text:'OPEN '+pc(t.pct)})}
+    else if(!taken.has('s'+t.t1))m.push({time:t.t1,position:L?'aboveBar':'belowBar',color:C['--muted'],shape:L?'arrowDown':'arrowUp',text:(t.why==='stop'?'STOP ':L?'SELL ':'COVER ')+pc(t.pct)})}
+  m.sort((a,b)=>a.time-b.time);candle.setMarkers(m.filter(x=>x.time>=bars[0].time));
+  lines.forEach(l=>candle.removePriceLine(l));lines=[];
+  const p=d.position;planRange=null;if(p){const risk=(p.risk||Math.abs(p.entry-p.stop)),tgt=p.entry+2*risk,hit=bars[bars.length-1].close>=tgt;planRange=[Math.min(p.stop,tgt,p.entry),Math.max(p.stop,tgt,p.entry)];
+    lines.push(candle.createPriceLine({price:p.stop,color:C['--c-dn'],lineWidth:2,lineStyle:0,axisLabelVisible:true,title:'STOP'}));
+    lines.push(candle.createPriceLine({price:tgt,color:C['--c-up'],lineWidth:2,lineStyle:0,axisLabelVisible:true,title:hit?'TARGET +2R ✓':'TARGET +2R'}));
+    lines.push(candle.createPriceLine({price:p.entry,color:C['--fg'],lineWidth:1,lineStyle:2,axisLabelVisible:true,title:'ENTRY LONG'}))}
+  if(!keep)centreLive(false);
+  legend(null);status();renderAssetSide();drawRibbon();
+}
+function legend(time){const d=chartData;if(!d)return;const{bars,s}=d;let i=bars.length-1;if(time!=null){const k=bars.findIndex(b=>b.time===time);if(k>=0)i=k}
+  if(d.kind==='trend'){const b=bars[i],chg=i?b.close/bars[i-1].close-1:0;
+    $('legend').innerHTML=`<div class="l1"><b>${d.sym}</b><span class="m">${tfL(d.tf)} · ${NAMES[d.market]} · ${d.tf>=86400?when(b.time).slice(0,10):when(b.time)}</span></div>
+     <div><span class="m">O</span> ${px(b.open)} <span class="m">H</span> ${px(b.high)} <span class="m">L</span> ${px(b.low)} <span class="m">C</span> <span style="color:${chg>=0?C['--up']:C['--down']}">${px(b.close)} ${pct(chg)}</span></div>
+     <div style="color:${s[i]>0?C['--accent']:C['--muted']}">Model share ${s[i]}%${d.N>1?' of its slot':' of the account'}</div>`;return}
+  const b=bars[i],chg=i?b.close/bars[i-1].close-1:0,v=s[i];
+  $('legend').innerHTML=`<div class="l1"><b>${d.sym}</b><span class="m">${tfL(d.tf)} · ${NAMES[d.market]} · ${when(b.time)}</span></div>
+   <div><span class="m">O</span> ${px(b.open)} <span class="m">H</span> ${px(b.high)} <span class="m">L</span> ${px(b.low)} <span class="m">C</span> <span style="color:${chg>=0?C['--up']:C['--down']}">${px(b.close)} ${pct(chg)}</span></div>
+   <div style="color:${Math.abs(v)<10?C['--muted']:consCol(v)}">Consensus ${v>0?'+':''}${v} ${consLabel(v)}</div>`}
+function status(){const d=chartData,el=$('status');el.hidden=false;if(d.kind==='trend'){const A=d.now,p=d.position,t=d.target,k=A?A.votes.filter(v=>v.yes).length:0,sh=v=>Math.round((v||0)*100)+'%';
+    const a=p?`HOLDING ${sh(p.weight)} · TARGET ${sh(p.target)}`:`IN CASH · TREND ${k}/8`,col=p?C['--accent']:C['--muted'];
+    const b=d.gated?'BITCOIN IN A DOWNTREND · ALTCOINS PAUSED':A?`TREND ${k}/8 · VOLATILITY ${Math.round(A.vol*100)}% A YEAR${A.scale<0.999?' → SIZE '+sh(A.scale):''} · MODEL SHARE ${sh(A.exposure)}`:'';
+    el.style.borderLeftColor=col;el.innerHTML=`<div class="a" style="color:${col}">${a}</div><div>${b}</div>`;return}
+  const n=d.bars.length,v=d.s[n-1],c=d.bars[n-1].close,p=d.position,R=d.rules;
+  let a,b,col;
+  if(p){const risk=(p.risk||Math.abs(p.entry-p.stop)),r=(c-p.entry)/risk;col=consCol(v);a=`HOLD LONG · ${consLabel(v)} ${v>0?'+':''}${v} · ${r>=0?'+':''}${r.toFixed(1)}R`;b=`STOP ${px(p.stop)} · TARGET ${px(p.entry+2*risk)}${c>=p.entry+2*risk?' ✓':''} · EXIT IF CONSENSUS < +${R.exit}`}
+  else{col=C['--muted'];a=`${v>=R.entry?'BUY ZONE':'FLAT'} · ${consLabel(v)} ${v>0?'+':''}${v}`;b=v>=R.entry?'SIGNAL, BUT NOT RANKED INTO A FREE SLOT':`BUY AT +${R.entry} · NO SHORTS`}
+  el.style.borderLeftColor=col;el.innerHTML=`<div class="a" style="color:${col}">${a}</div><div>${b}</div>`}
+// Consensus of the three methods that make up v3 / v3a, as on the old desk, plus the v3a adaptive profit stop.
+function consHTML(d,vt){const n=d.bars.length,v=d.s[n-1],c=d.bars[n-1].close,R=d.rules,M=d.methods,col=Math.abs(v)<10?C['--muted']:consCol(v);
+  let h=`<h2>Consensus of 3 models · v3a</h2><div class="cons"><div class="head"><span class="score" style="color:${col}">${v>0?'+':''}${v}</span><div><span class="lab" style="color:${col};margin-left:0">${consLabel(v)}</span>`;
+  if(M){const sc=M.since.secs,dur=sc>=86400?(sc/86400).toFixed(1)+' days':sc>=3600?(sc/3600).toFixed(1)+' hours':Math.round(sc/60)+' min';h+=`<div class="since">${M.since.side>0?'Buy side':M.since.side<0?'Sell side':'Neutral'} ${M.since.bars?'for '+dur:'· just changed'}</div>`}
+  h+=`</div></div><div class="gauge"><i style="left:calc(${(v+100)/2}% - 2px)"></i></div><div class="gauge-l"><span>−100 sell</span><span>0</span><span>buy +100</span></div>
+    <div class="ckey">${[['Strong sell','--c-dn'],['Sell','--r-dn'],['Lean short','--n-dn'],['Lean long','--n-up'],['Buy','--r-up'],['Strong buy','--c-up']].map(([l,t])=>`<span><i style="background:var(${t})"></i>${l}</span>`).join('')}</div>`;
+  if(!M)return h+`<div class="votes">${vt('PV',d.votes.pv,'PVSRA')}${vt('BO',d.votes.bo,'Trend Breakout')}${vt('MO',d.votes.mo,'Research momentum')}</div></div>`;
+  const tag=x=>{if(x==null)return['NO DATA','var(--muted)'];if(Math.abs(x)>0.01&&Math.abs(x)<0.99)return[x>0?'LEAN LONG':'LEAN SHORT',x>0?'var(--up)':'var(--down)'];return x>0.01?['LONG','var(--up)']:x<-0.01?['SHORT','var(--down)']:['FLAT','var(--muted)']};
+  const row=(nm,bar,x,why)=>{const[t,cc]=tag(x);return`<div class="mvote"><i style="background:${bar}"></i><div><div class="nm">${nm}</div><div class="why">${why}</div></div><span class="vv" style="color:${cc};border:1px solid color-mix(in srgb, ${cc} 45%, transparent)">${t}</span></div>`};
+  const P=M.pv.trade,B=M.bo.trade,rng=d.tf<=3600?'24-hour':M.bo.N+'-bar',L=M.mo.legs,ar=x=>x>0?'▲':x<0?'▼':'–';
+  const pvWhy=P?`In a ${P.setup.toLowerCase()} trade from ${px(P.entry)} (${day(P.t0)}), stop ${px(P.stop)}, target ${px(P.target)}.`:'No open vector trade. Waits for a climax candle in the direction of the daily trend.';
+  const boWhy=B?`Riding a break ${B.side>0?'above':'below'} the ${rng} range from ${px(B.entry)} (${day(B.t0)}), trailing stop ${px(B.trail)}.`:`Flat. Waits for a close through the ${rng} high or low with the daily trend.`;
+  const moWhy=L?`7-day ${ar(L[0])} · 14-day ${ar(L[1])} · 28-day ${ar(L[2])}: ${(()=>{const sg=Math.sign(M.mo.vote||0),k=L.filter(x=>x===sg&&sg).length;return sg?(k===3?'all three point ':'two of three point ')+(sg>0?'up':'down'):'the trends disagree'})()}. Decided from completed days.`:'Needs 29 days of daily history.';
+  h+=`<div class="mvotes">${row('PVSRA + trend guard','var(--r-up)',M.pv.vote,pvWhy)}${row('Trend Breakout','var(--accent)',M.bo.vote,boWhy)}${row('Research momentum','var(--n-up)',M.mo.vote,moWhy)}</div>
+    <p class="rule">The score is the average of the three votes: long +1, short −1, flat 0; momentum votes ±⅓ for each trend that agrees. Above +30 reads Buy, above +60 Strong buy.</p></div>`;
+  // v3 trade rules and the v3a profit stop
+  const p=d.position,A=M.v3a,inZone=v>=R.entry;
+  const rulesWhy=p?`Holding. Exits when the consensus falls below +${R.exit} (now ${v>0?'+':''}${v}) or at the stop ${px(p.stop)}.`:inZone?`Consensus is at or above +${R.entry}: a buy signal, taken only if this asset ranks into a free slot.`:`Buys when the consensus reaches +${R.entry}; re-enters while it stays there. Stop ${R.stopK} ATR, long only.`;
+  h+=`<h2>v3a rules on this asset</h2><div class="mvotes">${row('Entry and exit (v3)','var(--c-up)',p?1:inZone?0.5:0,rulesWhy).replace(/>(LEAN LONG|LONG|FLAT)</,'>'+(p?'HOLDING':inZone?'BUY ZONE':'WAITING')+'<')}`;
+  const TR=M.trendRule;if(TR&&isFinite(TR.d50)){const gap=(c/TR.d50-1)*100,why=`Close ${px(c)} is ${Math.abs(gap).toFixed(1)}% ${gap>=0?'above':'below'} the 50-day average (${px(TR.d50)}). ${TR.on?(TR.above?'Buys allowed.':'No new buys of this coin until it closes above it.'):'The rule is off in Settings, so this does not block buys.'}`;
+    h+=row('50-day rule','var(--n-up)',TR.above?1:0,why).replace(/>(LEAN LONG|LONG|FLAT)</,'>'+(!TR.on?'OFF':TR.above?'ABOVE':'BELOW')+'<')}
+  if(d.market==='crypto'){const bp=A.breadth==null?null:Math.round(A.breadth*100);
+    let why=bp==null?`Market breadth needs at least 20 coins with 200 bars of history; not available yet.`:`${bp}% of ${A.breadthN} coins are above their 50-day average. Below ${Math.round(A.runIfBreadth*100)}% the stop switches on: once a trade is ${A.afterR}R up it trails ${A.trailK} ATR under the best close. At ${Math.round(A.runIfBreadth*100)}% or more, trades run on v3 exits only.`;
+    if(A.pos){const q=A.pos;why+=` This trade: best close ${px(q.best)} (${q.bestR>=0?'+':''}${q.bestR.toFixed(1)}R), now ${q.nowR>=0?'+':''}${q.nowR.toFixed(1)}R. ${A.live?(q.moved?`The profit stop has raised the stop to ${px(q.stop)}.`:q.armed?`Up enough; the stop moves when breadth is below ${Math.round(A.runIfBreadth*100)}%.`:`Arms at +${A.afterR}R.`):(q.armed?`Profit stop would sit at ${px(q.stop)}${q.wouldExit?' — v3a would exit here':''}.`:`Arms at +${A.afterR}R.`)}`}
+    const st=bp==null?'NO DATA':A.on?'STOP ON':'STOP OFF',sc=bp==null?'var(--muted)':A.on?'var(--c-dn)':'var(--up)';
+    h+=`<div class="mvote"><i style="background:var(--r-dn)"></i><div><div class="nm">Adaptive profit stop (v3a)</div><div class="why">${why}</div>${spark(A.hist,A.runIfBreadth)}</div><span class="vv" style="color:${sc};border:1px solid color-mix(in srgb, ${sc} 45%, transparent)">${st}</span></div>`}
+  h+=`</div>`;
+  if(d.market==='crypto')h+=A.live?`<p class="rule">The profit stop is on: it moves this bot's stop.</p>`:`<p class="rule">The profit stop is off in Settings. It is shown for comparison and does not move the bot's stop.</p>`;
+  return h}
+function spark(hist,thr){const pts=(hist||[]).filter(x=>x[1]!=null);if(pts.length<2)return'';const W=200,H=34,t0=pts[0][0],t1=pts[pts.length-1][0]||t0+1,X=t=>(t-t0)/(t1-t0||1)*W,Y=v=>H-2-v*(H-4);
+  const d=pts.map((p,k)=>(k?'L':'M')+X(p[0]).toFixed(1)+' '+Y(p[1]).toFixed(1)).join('');
+  return`<svg class="bspark" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-label="Breadth over the last ${pts.length} bars"><line x1="0" x2="${W}" y1="${Y(thr)}" y2="${Y(thr)}" stroke="var(--c-dn)" stroke-dasharray="3 3" stroke-width="1" vector-effect="non-scaling-stroke"/><path d="${d}" fill="none" stroke="var(--fg)" stroke-width="1.5" vector-effect="non-scaling-stroke"/></svg>`}
+function renderAssetSide(){if(chartData.kind==='trend')return trendAssetSide();const d=chartData,n=d.bars.length,v=d.s[n-1],c=d.bars[n-1].close,p=d.position,R=d.rules;
+  const vt=(nm,x,full)=>{const col=x>0.01?C['--up']:x<-0.01?C['--down']:C['--muted'];return`<b style="color:${col}" title="${full}">${nm} ${x>0.01?'▲':x<-0.01?'▼':'–'}</b>`};
+  let h=consHTML(d,vt)+'<h2>Trade plan</h2>';
+  if(p){const risk=(p.risk||Math.abs(p.entry-p.stop)),pl=p.qty*(c-p.entry),r=(c-p.entry)/risk,ago=Math.round((d.bars[n-1].time-p.t0)/d.tf);
+    h+=`<div class="sigcard" style="border-color:color-mix(in srgb,var(--c-up) 55%,var(--line))"><div class="top"><span class="side" style="color:var(--c-up)">IN LONG</span><span class="chip">${r>=0?'+':''}${r.toFixed(2)}R open</span></div>
+     <div class="kv"><span>Entered</span><span>${px(p.entry)} · ${ago} bars ago</span><span>Size</span><span>${money(p.notional)}</span><span>Now</span><span class="${pl>=0?'pos':'neg'}">${px(c)} · ${smoney(pl)}</span>
+     <span>Stop</span><span style="color:var(--c-dn)">${px(p.stop)} (${pct(p.stop/c-1)})${p.stopWhy==='profit stop'?' · profit stop':''}</span><span>Target</span><span style="color:var(--c-up)">${px(p.entry+2*risk)} (+2R${c>=p.entry+2*risk?', reached':''})</span><span>Exit when</span><span>consensus below +${R.exit} (now ${v>0?'+':''}${v})</span></div></div>`}
+  else h+=`<div class="sigcard"><div class="top"><span class="side" style="color:var(--muted)">FLAT · ${v>=R.entry?'IN BUY ZONE':'WAITING'}</span><span class="chip">consensus ${v>0?'+':''}${v}</span></div>
+     <div class="kv"><span>Enter long</span><span>when consensus reaches +${R.entry}</span><span>If long now</span><span><span style="color:var(--c-dn)">stop ${px(c-R.stopK*d.atr[n-1])}</span> · <span style="color:var(--c-up)">target ${px(c+2*R.stopK*d.atr[n-1])}</span></span></div>
+     <p class="rule">The bot only buys when this asset ranks into one of its free slots.</p></div>`;
+  {const sg=(d.signals||[]).filter(t=>t.why!=='open'&&t.t0>=d.bars[0].time),w=sg.filter(t=>t.pct>0).length,avg=sg.length?sg.reduce((a,t)=>a+t.pct,0)/sg.length:0,sum=sg.reduce((a,t)=>a*(1+t.pct/100),1)-1;
+   h+=`<h2>Model signals <button class="sigtg" id="sigTg">${showSig?'Hide':'Show'} grey markers</button></h2>`+(sg.length?`<div class="kv sigkv"><span>Signals</span><span>${sg.length} closed · ${w} up (${Math.round(w/sg.length*100)}%)</span><span>Average</span><span class="${avg>=0?'pos':'neg'}">${avg>=0?'+':''}${avg.toFixed(1)}% a signal</span><span>All together</span><span class="${sum>=0?'pos':'neg'}">${sum>=0?'+':''}${(sum*100).toFixed(0)}%</span></div>`:'<div class="empty">No completed signals in the saved candles yet.</div>')+`<p class="rule">Grey arrows are every buy and sell the model gave on this chart, with the % move from buy to sell. Coloured arrows are the trades the bot actually took; grey ones are the moves it skipped because its slots were full or the asset wasn't ranked.</p>`}
+  const tr=[...d.trades].reverse();const tot=tr.reduce((a,t)=>a+t.pnl,0);
+  h+=`<h2>Trades on ${d.sym.replace(/USDT$/,'')}</h2>`+(tr.length?tr.map(t=>`<div class="tl"><span>${day(t.t0)} → ${day(t.t1)}${t.hist?' <span class="hist">history</span>':''}</span><span class="${t.pnl>=0?'pos':'neg'}">${smoney(t.pnl)}</span><span class="w">${px(t.entry)} → ${px(t.exit)} · ${t.why==='exit'?'consensus exit':t.why}</span></div>`).join('')+`<div class="tl"><span class="m">total</span><span class="${tot>=0?'pos':'neg'}"><b>${smoney(tot)}</b></span></div>`:'<div class="empty">No closed trades on this asset yet.</div>');
+  $('side').innerHTML=h;const tg=$('sigTg');if(tg)tg.onclick=()=>{showSig=!showSig;try{localStorage.setItem('pvsra.sig',showSig?'1':'0')}catch(e){}loadAsset(true)}}
+function trendAssetSide(){const d=chartData,A=d.now,p=d.position,c=d.bars[d.bars.length-1].close,sh=v=>Math.round((v||0)*100)+'%',nm=d.sym.replace(/USDT$/,'');
+  let h='';
+  if(A){const k=A.votes.filter(v=>v.yes).length;
+    h+=`<h2>Trend votes</h2><div class="cons"><span class="score" style="color:${k>=4?C['--accent']:C['--muted']}">${k}/8</span><span class="lab" style="color:${k>=4?C['--accent']:C['--muted']}">${k>=6?'Strong uptrend':k>=4?'Uptrend':k>=2?'Weak':'Downtrend'}</span><div class="gauge"><i style="left:calc(${k/8*100}% - 2px)"></i></div></div>
+      <div class="kv">${A.votes.map(v=>`<span>${v.q.replace(/^./,x=>x.toUpperCase())}</span><span style="color:${v.yes?C['--c-up']:C['--muted']}">${v.yes?'yes':'no'} · ${px(v.v)}</span>`).join('')}</div>
+      <h2>Size</h2><div class="kv"><span>Volatility</span><span>${Math.round(A.vol*100)}% a year</span><span>Size factor</span><span>${A.scale<0.999?sh(A.scale)+' (aims for 80% a year)':'full (below 80% a year)'}</span>${nm!=='BTC'?`<span>Bitcoin trend</span><span style="color:${d.gated?C['--c-dn']:C['--c-up']}">${d.gated?'down · altcoins paused':'up'}</span>`:''}<span>Model share</span><span><b>${d.gated?'0%':sh(A.exposure)}</b>${d.N>1?' of its slot (a tenth of the money)':' of the account'}</span></div>`}
+  h+='<h2>Position</h2>'+(p?`<div class="sigcard" style="border-color:color-mix(in srgb,var(--accent) 55%,var(--line))"><div class="top"><span class="side" style="color:var(--accent)">HOLDING ${sh(p.weight)}</span><span class="chip">target ${sh(p.target)}</span></div>
+     <div class="kv"><span>Coins</span><span>${px(p.qty)} ${nm}</span><span>Value</span><span>${money(p.qty*c)}</span><span>Average cost</span><span>${px(p.entry)} (${pct(c/p.entry-1)})</span><span>Open profit</span><span class="${p.qty*c-p.cost>=0?'pos':'neg'}">${smoney(p.qty*c-p.cost)}</span><span>Since</span><span>${day(p.t0)}</span></div>
+     <p class="rule">No stop-loss: the model lowers its share as the trend weakens and sells everything when all eight votes say no.</p></div>`:`<div class="sigcard"><div class="top"><span class="side" style="color:var(--muted)">IN CASH</span></div><p class="rule">Buys when at least one trend vote says yes${nm!=='BTC'?' and Bitcoin itself is trending up':''}; the more votes, the bigger the share.</p></div>`);
+  const od=[...d.orders].reverse();
+  h+=`<h2>Orders on ${nm}</h2>`+(od.length?od.slice(0,20).map(o=>`<div class="tl"><span><span class="m">${day(o.t)}</span> <b style="color:${o.side==='BUY'?'var(--c-up)':'var(--fg)'}">${o.side}</b>${o.hist?' <span class="hist">history</span>':''}</span><span>${money(o.value)}</span><span class="w">${sh(o.from)} → ${sh(o.to)} of the account @ ${px(o.price)}</span></div>`).join(''):'<div class="empty">No orders on this coin yet.</div>');
+  const tr=[...d.trades].reverse(),tot=tr.reduce((a,t)=>a+t.pnl,0);
+  if(tr.length)h+=`<h2>Closed holdings</h2>`+tr.map(t=>`<div class="tl"><span>${day(t.t0)} → ${day(t.t1)}${t.hist?' <span class="hist">history</span>':''}</span><span class="${t.pnl>=0?'pos':'neg'}">${smoney(t.pnl)}</span><span class="w">avg cost ${px(t.entry)} → sold ${px(t.exit)}</span></div>`).join('')+`<div class="tl"><span class="m">total</span><span class="${tot>=0?'pos':'neg'}"><b>${smoney(tot)}</b></span></div>`;
+  $('side').innerHTML=h}
+function drawRibbon(){if(!ch||!chartData)return;const el=$('chart'),dpr=window.devicePixelRatio||1,w=el.clientWidth,hh=el.clientHeight;back.width=w*dpr;back.height=hh*dpr;back.style.width=w+'px';back.style.height=hh+'px';ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,w,hh);
+  const ts=ch.timeScale(),r=ts.getVisibleLogicalRange();if(!r)return;const bars=chartData.bars,s=chartData.s,ph=hh-ts.height(),pw=w-ch.priceScale('right').width(),RH=14,y=ph-RH-3;
+  const bs=Math.max(1,(ts.logicalToCoordinate(1)??0)-(ts.logicalToCoordinate(0)??0));
+  ctx.save();ctx.beginPath();ctx.rect(0,0,pw,ph);ctx.clip();ctx.fillStyle=alpha(C['--bg'],.85);ctx.fillRect(0,y-3,pw,RH+6);
+  const TR=chartData.kind==='trend',fillFor=v=>TR?(v<=0?alpha(C['--muted'],.25):alpha(C['--accent'],.25+.75*v/100)):(Math.abs(v)<10?alpha(C['--muted'],.3):consCol(v));
+  for(let i=Math.max(0,Math.floor(r.from)-1);i<=Math.min(bars.length-1,Math.ceil(r.to)+1);i++){const x=ts.logicalToCoordinate(i);if(x==null)continue;const v=s[i];ctx.fillStyle=fillFor(v);ctx.fillRect(x-bs/2,y,Math.max(1,bs+.5),RH)}
+  ctx.font='600 10px "IBM Plex Mono", monospace';const lab=TR?'MODEL SHARE':'CONSENSUS',lw=ctx.measureText(lab).width+10;ctx.fillStyle=alpha(C['--bg'],.9);ctx.fillRect(4,y+1,lw,RH-2);ctx.fillStyle=C['--fg'];ctx.fillText(lab,9,y+RH-4);
+  const xl=ts.logicalToCoordinate(bars.length-1);if(TR&&xl!=null&&xl<pw){const v=s[bars.length-1],t=v+'% held',tw=ctx.measureText(t).width+10,xx=Math.min(pw-tw-2,xl+bs);ctx.fillStyle=v>0?C['--accent']:C['--muted'];ctx.fillRect(xx,y,tw,RH);ctx.fillStyle=v>0?(C['--accent-ink']||'#0b0e12'):'#0b0e12';ctx.fillText(t,xx+5,y+RH-4)}
+  else if(xl!=null&&xl<pw){const v=s[bars.length-1],t=(v>0?'+':'')+v+' '+consLabel(v),tw=ctx.measureText(t).width+10,xx=Math.min(pw-tw-2,xl+bs);const tk=consTok(v);ctx.fillStyle=Math.abs(v)<10?C['--muted']:consCol(v);ctx.fillRect(xx,y,tw,RH);ctx.fillStyle=(tk==='--n-dn'||tk==='--r-up'||tk==='--c-dn'||tk==='--r-dn')?'#ffffff':'#0b0e12';ctx.fillText(t,xx+5,y+RH-4)}
+  ctx.restore()}
+
+if(!LW){document.body.innerHTML='<div class="notice">The charting library could not load. Check your internet connection and reload.</div>';return}
+matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change',()=>{readColors();location.reload()});
+DrawLayer({wrap:$('eq').parentElement,el:$('eq'),api:DrawLayer.lw($('eq'),()=>eqChart,()=>eqSeries,()=>S&&S[view.market]&&S[view.market].cfg?S[view.market].cfg.tf:86400),
+  key:()=>'eq:'+view.market,visible:()=>view.kind==='model'&&!$('modelMain').hidden&&!!eqChart});
+DrawLayer({wrap:$('wrap'),el:$('chart'),api:DrawLayer.lw($('chart'),()=>ch,()=>candle,()=>chartData&&chartData.tf),
+  key:()=>chartData?`a:${view.market}:${chartData.sym}:${chartData.tf}`:'a:none',visible:()=>view.kind==='asset'&&!$('assetMain').hidden&&!!chartData&&!!chartData.bars,barPos:()=>({left:10,top:10})});
+window.__dash={refresh,view:()=>view,chart:()=>ch};refresh();setInterval(refresh,30000);
+document.addEventListener('dash:rendered',()=>{});
+})();
+</script>
+<script src="/app.js"></script>
+</body></html>
